@@ -5,6 +5,7 @@ import * as dbHandler from '../tools/database/dbHandler.js';
 export async function start() {
 	//first scrap the standart data with the api
 	// scrap all itemIDs
+	await scrapWeaponCaseData('asfd');
 	let steamItemIds = await getAllItemIDs();
 
 	let steamData = await Axios.get(
@@ -65,4 +66,14 @@ async function getAllItemIDs() {
 		let itemData;
 		return itemData;
 	});
+}
+
+async function scrapWeaponCaseData(weaponCaseUrl) {
+	weaponCaseUrl = 'https://steamcommunity.com/market/listings/730/Winter%20Offensive%20Weapon%20Case';
+	//start browser and go to the site
+	let scrappingBrowser = await ScrappingBrowser.start();
+	let scrappingPage = await scrappingBrowser.newPage();
+	await scrappingPage.goto(weaponCaseUrl);
+	await scrappingPage.click('a.zoomopt[style="padding-right: 0"');
+	zconsole.log('debug');
 }

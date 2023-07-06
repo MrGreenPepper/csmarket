@@ -6,7 +6,7 @@ export async function start() {
 		renewData: false,
 		scrapeUrls: false,
 		scrapeContainer: false,
-		extractContainerContent: true,
+		extractContainerContent: false,
 	});
 
 	//scBrowser = scrappingBrowser.start();

@@ -1,6 +1,7 @@
 import * as scBrowser from '../tools/scrappingBrowser.js';
 import * as dbHandler from '../../tools/database/dbHandler.js';
-import * as containerTools from './containerTools.js';
+import * as extractor_container from './extractContainer.js';
+import * as statistcs from './getStatistics.js';
 
 /**
  *
@@ -9,8 +10,6 @@ import * as containerTools from './containerTools.js';
  * @param {options} scrapeContent
  * @param {options} convertContent
  * @param {options} scrapeWeapons
- *
- *
  */
 export async function scrappingProtocol({
 	renewData = false,
@@ -20,6 +19,7 @@ export async function scrappingProtocol({
 	scrapeWeapons = false,
 	generateStatistics = true,
 	extractContainerContent = true,
+	calculateStatistics = true,
 }) {
 	if (renewData) {
 		await dbHandler.dropAllTables();
@@ -34,7 +34,10 @@ export async function scrappingProtocol({
 		_scrapeWeapons();
 	}
 	if (extractContainerContent) {
-		_extractContainerContent();
+		extractor_container.extractContainerContent();
+	}
+	if (calculateStatistics) {
+		await statistcs.getAll();
 	}
 }
 
@@ -170,35 +173,3 @@ function delay(ms) {
 const delay2 = (ms) => new Promise((res) => setTimeout(res, ms));
 
 async function scrapeWeapons() {}
-
-async function _extractContainerContent() {
-	let itemNames = await dbHandler.sqlQuery('SELECT itemname FROM containerurls');
-	let sqlSyntaxes = {
-		loadRawContent: 'SELECT pagecontent FROM containerrawcontent WHERE itemname = $1;',
-		createTable: 'CREATE TABLE IF NOT EXISTS containerContent (itemname TEXT UNIQUE, historicData TEXT[]);',
-		saveData: `INSERT INTO containerContent (itemname, historicData) VALUES ($1, $2) 
-					ON CONFLICT (itemName) DO UPDATE SET historicData=EXCLUDED.historicData;`,
-	};
-
-	//create the db table if not exists
-	let dbResponse = await dbHandler.sqlQuery(sqlSyntaxes.createTable);
-	console.log('dbResponse - createTable:\t', dbResponse);
-
-	//load raw data. extract the historic data and save them into the new table
-	for (let entry of itemNames.rows) {
-		//load raw data
-		let currentItemName = entry.itemname;
-		let currentItemRawData = await dbHandler.sqlQuery(sqlSyntaxes.loadRawContent, [currentItemName]).then((res) => {
-			console.log(res);
-			let pageContent = res.rows[0].pagecontent;
-			return pageContent;
-		});
-
-		//extract the data
-		let historicData = containerTools.pageContentToHistoricData(currentItemRawData);
-		console.log('');
-		//save into the new table
-		dbResponse = await dbHandler.sqlQuery(sqlSyntaxes.saveData, [currentItemName, historicData]);
-		console.log('dbResponse - save historic Data:\t', dbResponse);
-	}
-}

@@ -1,5 +1,6 @@
-import * as scrappingBrowser from '../tools/scrappingBrowser.js';
+import * as scBrowser from '../tools/scrappingBrowser.js';
 import * as dbHandler from '../../tools/database/dbHandler.js';
+import * as containerTools from './containerTools.js';
 
 /**
  *
@@ -14,28 +15,34 @@ import * as dbHandler from '../../tools/database/dbHandler.js';
 export async function scrappingProtocol({
 	renewData = false,
 	scrapeUrls = true,
-	scrapeContent = true,
+	scrapeContainer = true,
 	convertContent = true,
 	scrapeWeapons = false,
 	generateStatistics = true,
+	extractContainerContent = true,
 }) {
 	if (renewData) {
 		await dbHandler.dropAllTables();
 	}
 	if (scrapeUrls) {
-		await getContainerUrls();
+		await _getContainerUrls();
 	}
-	if (scrapeContent) {
-		await scrapeContainers();
-		await scrapeWeapons();
+	if (scrapeContainer) {
+		await _scrapeContainers();
+	}
+	if (scrapeWeapons) {
+		_scrapeWeapons();
+	}
+	if (extractContainerContent) {
+		_extractContainerContent();
 	}
 }
 
 /* scraps all container urls and saves them into the db*/
-export async function getContainerUrls() {
+export async function _getContainerUrls() {
 	let steamUrl_csgo =
 		'https://steamcommunity.com/market/search?q=Container&category_730_ItemSet%5B%5D=any&category_730_ProPlayer%5B%5D=any&category_730_StickerCapsule%5B%5D=any&category_730_TournamentTeam%5B%5D=any&category_730_Weapon%5B%5D=any&category_730_Quality%5B%5D=tag_normal&category_730_Rarity%5B%5D=tag_Rarity_Common&appid=730#p5_default_desc';
-	let scrappingBrowser = await ScrappingBrowser.start();
+	let scrappingBrowser = await scBrowser.start();
 	let scrappingPage = await scrappingBrowser.newPage();
 	await scrappingPage.goto(steamUrl_csgo);
 	//await scrappingPage.waitForNavigation();
@@ -50,7 +57,8 @@ export async function getContainerUrls() {
 
 	//loop threw the pages and get the itemlinks
 	let itemUrls = [];
-	for (let i = 1; i <= pageCount; i++) {
+	for (let i = 1; i <= 2; i++) {
+		//for (let i = 1; i <= pageCount; i++) {
 		/*
 		let currentURL = steamUrl_csgo;
 		if (i != 0) currentURL += `#p${i}_default_desc#p8`;
@@ -88,7 +96,7 @@ export async function getContainerUrls() {
  * @param {array} data		{url, hashName}
  * @returns true
  */
-async function createLinkTable(data) {
+async function _createLinkTable(data) {
 	let tableName = 'containerurls';
 	//check if the table exists, if so delete it
 	/*
@@ -122,10 +130,10 @@ async function createLinkTable(data) {
 }
 
 /**loads the containerUrls from the DB, scrapes the pageContent & saves it  */
-async function scrapeContainers() {
+async function _scrapeContainers() {
 	let loadSQLSyntax = 'SELECT * FROM containerurls;';
 	let createRawTableSyntax = `CREATE TABLE IF NOT EXISTS containerRawContent (itemName TEXT UNIQUE, pageContent TEXT);`;
-	let scrapeBrowser = await scrappingBrowser.start();
+	let scrapeBrowser = await scBrowser.start();
 	let scrappingPage = await scrapeBrowser.newPage();
 	let saveSQLSyntax = `INSERT INTO containerRawContent (itemName, pageContent) VALUES ($1, $2) 
 						ON CONFLICT (itemName) DO UPDATE SET pageContent=EXCLUDED.pageContent;`;
@@ -138,7 +146,7 @@ async function scrapeContainers() {
 	try {
 		dbHandler.sqlQuery(createRawTableSyntax);
 	} catch (error) {
-		console.log(error);
+		//is already catched in the sqlQuery functionq
 	}
 
 	//loop, scrape and save urls rawContent
@@ -149,8 +157,7 @@ async function scrapeContainers() {
 
 		await dbHandler.sqlQuery(saveSQLSyntax, [containerMeta.itemname, pageContent]);
 		let test = await delay(3000);
-		let test2 = await delay2(3000);
-		console.log(test, test2);
+		console.log(test);
 	}
 
 	return;
@@ -163,3 +170,35 @@ function delay(ms) {
 const delay2 = (ms) => new Promise((res) => setTimeout(res, ms));
 
 async function scrapeWeapons() {}
+
+async function _extractContainerContent() {
+	let itemNames = await dbHandler.sqlQuery('SELECT itemname FROM containerurls');
+	let sqlSyntaxes = {
+		loadRawContent: 'SELECT pagecontent FROM containerrawcontent WHERE itemname = $1;',
+		createTable: 'CREATE TABLE IF NOT EXISTS containerContent (itemname TEXT UNIQUE, historicData TEXT[]);',
+		saveData: `INSERT INTO containerContent (itemname, historicData) VALUES ($1, $2) 
+					ON CONFLICT (itemName) DO UPDATE SET historicData=EXCLUDED.historicData;`,
+	};
+
+	//create the db table if not exists
+	let dbResponse = await dbHandler.sqlQuery(sqlSyntaxes.createTable);
+	console.log('dbResponse - createTable:\t', dbResponse);
+
+	//load raw data. extract the historic data and save them into the new table
+	for (let entry of itemNames.rows) {
+		//load raw data
+		let currentItemName = entry.itemname;
+		let currentItemRawData = await dbHandler.sqlQuery(sqlSyntaxes.loadRawContent, [currentItemName]).then((res) => {
+			console.log(res);
+			let pageContent = res.rows[0].pagecontent;
+			return pageContent;
+		});
+
+		//extract the data
+		let historicData = containerTools.pageContentToHistoricData(currentItemRawData);
+		console.log('');
+		//save into the new table
+		dbResponse = await dbHandler.sqlQuery(sqlSyntaxes.saveData, [currentItemName, historicData]);
+		console.log('dbResponse - save historic Data:\t', dbResponse);
+	}
+}

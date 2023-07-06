@@ -1,8 +1,3 @@
-//OLD -->
-
-import * as ScrappingBrowser from '../tools/scrappingBrowser.js';
-import * as dbHandler from '../../tools/database/dbHandler.js';
-
 /* slices the historic graph data out of the html source code*/
 export function pageContentToHistoricData(pagecontent) {
 	let dataArrayRegex = /(?<=var line1=).*?(?=;)/gim;

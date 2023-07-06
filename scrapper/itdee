@@ -1,0 +1,3 @@
+keine notizen sonst würde es ja arbeit sein ... mit dieser einstellung arbeiten ... dann macht es immer spaß
+
+4486	function CreatePriceHistoryGraph( line1, numYAxisTicks, strFormatPrefix, strFormatSuffix )

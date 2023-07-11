@@ -29,30 +29,108 @@ export async function getAll() {
 		let historicData = await dbHandler
 			.sqlQuery(sqlSyntaxes.loadItemContent, [currentName])
 			.then((res) => res.rows[0].historicdata);
-		let [dateArray, priceArray, countArray] = splitIntoSingleArrays(historicData);
+		let dataArray = parseData(historicData);
+		let lifeTime = lifetimeContainer(dataArray);
+		dataArray.lifeTime = lifeTime;
+		dataArray = elasticityPrice(dataArray);
+		dataArray = tradeVolumne(dataArray);
 		console.log('test');
 		/**wanted statistcs
 		 *
 		 */
 		//lifetime container
 		//elastizität menge price
-		//martvolumen
+		//marktvolumen
 		//handelsvolumen
 		//relation markt zu handelsvolumen
+		//medianPrice
+		//varianz
 		//.. bräuchte die angebots und nachfrage daten
 	}
+}
+
+/**calculates different medians for the given category*/
+function allMedians(dataArray) {}
+
+/** calculates the median prices depending on the given timespan.
+ * The timespan can be a single value, then its from now, or an array with 2 number with start and end day count from now.
+ * @param {array}	dataArray - the array containing the obj, containing the data for the specific day
+ * @param {} timeSpan - (2 number array or 1 single number) the timespan (from now into the past) for calculating the median
+ * @param {string} category - keyName in the dataArray - Entries to calculate with
+ * @returns {array} dataArray - with median#timeSpan as key
+ */
+function calcMedian(dataArray, timeSpan, category) {
+	let median;
+	let medianObj;
+	let values = [];
+	let startDate = Array.isArray(timeSpan) ? dataArray.length - timeSpan[0] : dataArray.length - timeSpan;
+	let endDate = dataArray.length - Array.isArray(timeSpan) ? timeSpan[1] : dataArray.length;
+	let medianName = `median_${category}_${timeSpan}`;
+
+	for (let i = startDate; i < endDate; i++) {
+		values.push(dataArray[i][category]);
+	}
+	if (values.length % 2 == 0) {
+		let middleLength = values.length / 2;
+		median = (values[middleLength] + values[middleLength + 1]) / 2;
+	} else {
+		median = values[Math.floor(values.length / 2) + 1];
+	}
+	dataArray[medianName] = median;
+	return dataArray;
+}
+function priceVariation(dataArray, timeSpan) {}
+
+function lifetimeContainer(dataArray) {
+	let years = Math.floor(dataArray.length / 356);
+	let days = dataArray.length % 356;
+	let lifeTime = { years: years, days: days };
+	return lifeTime;
+}
+
+function elasticityPrice(dataArray) {
+	//TODO: error 2347/2348 ... check NaN
+	let currentElasticity;
+	let currentData;
+	let previousData;
+	for (let i = 1; i < dataArray.length; i++) {
+		previousData = dataArray[i - 1];
+		currentData = dataArray[i];
+		currentElasticity =
+			((currentData.count - previousData.count) / (currentData.price - previousData.price)) *
+			(currentData.price / previousData.price);
+		dataArray[i].priceElasticity = currentElasticity;
+		//TODO check elastiicty and it doenst saves it in the obj
+	}
+	return dataArray;
+}
+
+function tradeVolumne(dataArray) {
+	let currentTradeVolumne;
+	let currentData;
+
+	for (let i = 0; i < dataArray.length; i++) {
+		currentData = dataArray[i];
+		currentTradeVolumne = dataArray[i].count * dataArray[i].price;
+		dataArray[i].tradeVolumne = currentTradeVolumne;
+	}
+	return dataArray;
+}
+function calculateMetaStatistics(dateArray, priceArray, countArray) {
+	let tradeVolumne = [];
 }
 
 /**Parses the raw historic data from db into obj and splits them into separated arrays.
  * Also fixes missing days by approximating them
  * @param {array} 	historicData 	- 	the array containing every day per entry as single string
  * @param {boolean}	approximateMissingDays 	- default = true, the historic data is incomplete, instead of take care later in every single step we approximate the missing days
- * @returns {[dates:array, prices:array, count:arrayx]} [dateArray, priceArray, countArray]		-	the parsed, splitted and cleaned data
+ * @returns {[dataArray: array} [dateArray, priceArray, countArray]		-	the parsed, splitted and cleaned data
  */
-function splitIntoSingleArrays(historicData, aproximateMissingDays = true) {
+function parseData(historicData, approximateMissingDays = true) {
 	let dateArray = [];
 	let priceArray = [];
 	let countArray = [];
+	let dataArray = [];
 	let dateRegex = /[a-z,A-Z]{3}.[0-9]{2}.[0-9]{4}/gim;
 	let dayRegex = / [0-9]{2} /gim;
 	let yearRegex = /[0-9]{4}/gim;
@@ -66,53 +144,54 @@ function splitIntoSingleArrays(historicData, aproximateMissingDays = true) {
 		countArray.push(entry.count);
 	});
 	//clean the dates
-	dateArray = dateArray.map((date) => {
+	dateArray = dateArray.map((date, index) => {
 		date = date.match(dateRegex)[0];
 		let day = date.match(dayRegex)[0].trim();
 		day = parseInt(day);
 		let month = date.match(monthRegex)[0];
 		let year = date.match(yearRegex)[0];
 		year = parseInt(year);
+		dataArray.push({ day: day, month: month, year: year, price: priceArray[index], count: countArray[index] });
 		return { day: day, month: month, year: year };
 	});
 	//tests the data
 	if (dateArray.length == priceArray.length && dateArray.length == countArray.length) {
-	} else throw console.error('incomplete historic data');
+	} else throw console.error('unmatching7 historic data');
 	//approximate missing dates
-	[dateArray, priceArray, countArray] = approximateMissingDays([dateArray, priceArray, countArray]);
+	if (approximateMissingDays) dataArray = _approximateMissingDays(dataArray);
 
-	return [dateArray, priceArray, countArray];
+	return dataArray;
 }
 
-function approximateMissingDays([dateArray, priceArray, countArray]) {
-	let fixedDateArray = [];
-	let fixedPriceArray = [];
-	let fixedCountArray = [];
+function _approximateMissingDays(dataArray) {
+	let fixedDataArray = [];
 	//find missing days
-	for (let i = 0; i < dateArray.length - 1; i++) {
+	for (let i = 0; i < dataArray.length - 1; i++) {
 		//first push origin
-		fixedDateArray.push(dateArray[i]);
-		fixedPriceArray.push(priceArray[i]);
-		fixedCountArray.push(countArray[i]);
+		fixedDataArray.push(dataArray[i]);
 		//TODO correct month lengths (the last months had realy end)
 		//TODO: think about approximating the price like that (peak days) ... maybe missing days before peak days
-		if (dateArray[i].day + 1 != dateArray[i + 1].day && dateArray[i].month == dateArray[i + 1].month) {
+		if (dataArray[i].day + 1 != dataArray[i + 1].day && dataArray[i].month == dataArray[i + 1].month) {
 			//count missing days
-			let missingDays = dateArray[i + 1].day - dateArray[i].day - 1;
-			let countChange = countArray[i + 1] - countArray[i];
+			let missingDays = dataArray[i + 1].day - dataArray[i].day - 1;
+			let countChange = dataArray[i + 1].count - dataArray[i].count;
 			let countChangePerDay = countChange / missingDays;
-			let priceChange = priceArray[i + 1] - priceArray[i];
+			let priceChange = dataArray[i + 1].price - dataArray[i].price;
 			let priceChangePerDay = priceChange / missingDays;
 			for (let n = 1; n <= missingDays; n++) {
-				let currentDay = dateArray[i].day + n;
-				let currentDate = { day: currentDay, month: dateArray[i].month, year: dateArray[i].year };
-				let currentPrice = priceArray[i] + n * priceChangePerDay;
-				let currentCount = countArray[i] + n * countChangePerDay;
-				fixedDateArray.push(currentDate);
-				fixedPriceArray.push(currentPrice);
-				fixedCountArray.push(currentCount);
+				let currentDay = dataArray[i].day + n;
+				let currentDate = { day: currentDay, month: dataArray[i].month, year: dataArray[i].year };
+				let currentPrice = dataArray[i].price + n * priceChangePerDay;
+				let currentCount = dataArray[i].count + n * countChangePerDay;
+				fixedDataArray.push({
+					day: currentDay,
+					month: dataArray[i].month,
+					year: dataArray[i].year,
+					price: currentPrice,
+					count: currentCount,
+				});
 			}
 		}
 	}
-	return [fixedDateArray, fixedPriceArray, fixedCountArray];
+	return fixedDataArray;
 }

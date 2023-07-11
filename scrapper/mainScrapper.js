@@ -5,7 +5,7 @@ export async function start() {
 	await steamScrapper.scrappingProtocol({
 		renewData: false,
 		scrapeUrls: false,
-		scrapeContainer: false,
+		scrapeContainer: true,
 		extractContainerContent: false,
 	});
 

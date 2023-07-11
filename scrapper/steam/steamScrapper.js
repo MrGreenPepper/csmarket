@@ -155,9 +155,49 @@ async function _scrapeContainers() {
 	//loop, scrape and save urls rawContent
 
 	for (let containerMeta of containerUrls) {
+		await scrappingPage.setRequestInterception(true);
+
+		scrappingPage.on('response', (response) => {
+			console.log(response);
+
+			if (response.request().method === 'POST' && response.url === `${process.env.USERS_API_DOMAIN}/sessions`) {
+				expect(response.status).toEqual(400);
+			}
+		});
+		/*
+		scrappingPage.on('request', (req) => {
+			if (req.resourceType() === 'image') {
+				req.abort();
+			} else {
+				req.continue();
+				let res = req.response();
+				let ts;
+			}
+		});*/
+
+		const response = scrappingPage.on('response', (response) => response);
+		await scrappingPage.on('response', (response) => {
+			console.log(response);
+
+			if (response.request().method === 'POST' && response.url === `${process.env.USERS_API_DOMAIN}/sessions`) {
+				expect(response.status).toEqual(400);
+			}
+		});
 		await scrappingPage.goto(containerMeta.itemurl);
+		response = scrappingPage.on('response', (response) => response);
+		await scrappingPage.on('response', (response) => {
+			console.log(response);
+
+			if (response.request().method === 'POST' && response.url === `${process.env.USERS_API_DOMAIN}/sessions`) {
+				expect(response.status).toEqual(400);
+			}
+		});
 		let pageContent = await scrappingPage.content();
 
+		/*	await scrappingPage.goto(
+			'https://steamcommunity.com/market/itemordershistogram?country=DE&language=german&currency=1&item_nameid=29205213&two_factor=0'
+		);
+*/
 		await dbHandler.sqlQuery(saveSQLSyntax, [containerMeta.itemname, pageContent]);
 		let test = await delay(3000);
 		console.log(test);

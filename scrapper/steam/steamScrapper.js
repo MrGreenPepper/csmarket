@@ -143,13 +143,13 @@ function waitForOrderUrl(variable) {
 	});
 }
 
-/**loads the containerUrls from the DB, scrapes the pageContent & saves it  */
+/**loads the containerUrls from the DB, scrapes the pageContent and filters requests for order data& saves it  */
 async function _scrapeContainers() {
 	let loadSQLSyntax = 'SELECT * FROM containerurls;';
-	let createRawTableSyntax = `CREATE TABLE IF NOT EXISTS containerRawContent (itemName TEXT UNIQUE, pageContent TEXT, orderData TEXT);`;
+	let createRawTableSyntax = `CREATE TABLE IF NOT EXISTS containerRawContent (itemName TEXT UNIQUE, itemID NUMBER UNIQUE, pageContent TEXT, orderData TEXT);`;
 	let scrapeBrowser = await scBrowser.start();
 	let scrappingPage = await scrapeBrowser.newPage();
-	let saveSQLSyntax = `INSERT INTO containerRawContent (itemName, pagecontent, orderData) VALUES ($1, $2, $3) 
+	let saveSQLSyntax = `INSERT INTO containerRawContent (itemName, itemID, pagecontent, orderData) VALUES ($1, $2, $3, $4) 
 						ON CONFLICT (itemName) DO UPDATE SET pageContent=EXCLUDED.pageContent, orderData = EXCLUDED.orderData;`;
 
 	//get container URLS
@@ -170,11 +170,10 @@ async function _scrapeContainers() {
 			let scrappingPage = await scrapeBrowser.newPage();
 
 			let requestUrlRegEx = /(steamcommunity\.com\/market\/itemordershistogram\?)/gim;
+			let itemIDregEx = /(?<=item_nameid=).*(?=&)/gim;
+			let itemID = '';
 			let foundOrderUrl = false;
 			let orderURL;
-			let orderURLPromise = new Promise((resolve) => {
-				if (foundOrderUrl) resolve(orderURL);
-			});
 			let orderData;
 			let rawData;
 
@@ -207,9 +206,10 @@ async function _scrapeContainers() {
 			//go to the scraped order url
 			await scrappingPage.goto(orderURL);
 			await scrappingPage.waitForNetworkIdle();
+			itemID = orderURL.match(itemIDregEx);
 			orderData = await scrappingPage.content();
 			await scrappingPage.close();
-			await dbHandler.sqlQuery(saveSQLSyntax, [containerMeta.itemname, rawData, orderData]);
+			await dbHandler.sqlQuery(saveSQLSyntax, [containerMeta.itemname, itemid, rawData, orderData]);
 		} catch (error) {
 			console.error('cant get container data');
 			console.error(error);

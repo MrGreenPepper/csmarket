@@ -132,15 +132,25 @@ async function _createLinkTable(data) {
 		await dbHandler.sqlQuery(insertSyntax, [itemData.hashName, itemData.url]);
 	}
 }
+function waitForOrderUrl(variable) {
+	return new Promise((resolve) => {
+		const interval = setInterval(() => {
+			if (variable === true) {
+				clearInterval(interval);
+				resolve();
+			}
+		}, 100);
+	});
+}
 
 /**loads the containerUrls from the DB, scrapes the pageContent & saves it  */
 async function _scrapeContainers() {
 	let loadSQLSyntax = 'SELECT * FROM containerurls;';
-	let createRawTableSyntax = `CREATE TABLE IF NOT EXISTS containerRawContent (itemName TEXT UNIQUE, pageContent TEXT);`;
+	let createRawTableSyntax = `CREATE TABLE IF NOT EXISTS containerRawContent (itemName TEXT UNIQUE, pageContent TEXT, orderData TEXT);`;
 	let scrapeBrowser = await scBrowser.start();
 	let scrappingPage = await scrapeBrowser.newPage();
-	let saveSQLSyntax = `INSERT INTO containerRawContent (itemName, pageContent) VALUES ($1, $2) 
-						ON CONFLICT (itemName) DO UPDATE SET pageContent=EXCLUDED.pageContent;`;
+	let saveSQLSyntax = `INSERT INTO containerRawContent (itemName, pagecontent, orderData) VALUES ($1, $2, $3) 
+						ON CONFLICT (itemName) DO UPDATE SET pageContent=EXCLUDED.pageContent, orderData = EXCLUDED.orderData;`;
 
 	//get container URLS
 	let containerUrls = await dbHandler.sqlQuery(loadSQLSyntax);
@@ -156,63 +166,54 @@ async function _scrapeContainers() {
 	//loop, scrape and save urls rawContent
 
 	for (let containerMeta of containerUrls) {
-		// containerMeta.itemurl = 'https://steamcommunity.com/market/listings/730/Revolution%20Case';
-		containerMeta.itemurl =
-			'https://steamcommunity.com/market/itemordershistogram?country=DE&language=german&currency=3&item_nameid=1275323&two_factor=0';
-		let requestUrlRegEx = /(steamcommunity\.com\/market\/itemordershistogram\?)/gim;
-		let itemIDregEx = /(?<=item_nameid=).*(?=&two)/gim;
-		let imageTesterRegEx = /\.png|\.jpg|images/gim;
-		let paused = false;
-		let pausedRequests = [];
+		try {
+			let scrappingPage = await scrapeBrowser.newPage();
 
-		let results = [];
+			let requestUrlRegEx = /(steamcommunity\.com\/market\/itemordershistogram\?)/gim;
+			let foundOrderUrl = false;
+			let orderURL;
+			let orderURLPromise = new Promise((resolve) => {
+				if (foundOrderUrl) resolve(orderURL);
+			});
+			let orderData;
+			let rawData;
 
-		await scrappingPage.setRequestInterception(true);
-		const nextRequest = () => {
-			// continue the next request or "unpause"
-			if (pausedRequests.length === 0) {
-				paused = false;
-			} else {
-				// continue first request in "queue"
-				let currentRequest = pausedRequests.shift(); // calls the request.continue function
-				currentRequest.continue();
-			}
-		};
+			await scrappingPage.setRequestInterception(true);
 
-		scrappingPage.on('request', (request) => {
-			let currentUrl = request.url();
-			console.log('to buffer request: \t', currentUrl);
-
-			let testResult = currentUrl.includes('image') || currentUrl.includes('font');
-			console.log('test result: \t', testResult);
-			if (testResult) {
-				console.warn('abort request: \t', request.url());
-				request.abort();
-			} else {
-				if (paused) {
-					console.log('request stack: \t');
-					for (let reqStack of pausedRequests) {
-						console.log(reqStack.url());
+			scrappingPage.on('request', (request) => {
+				let currentURL = request.url();
+				console.log(currentURL);
+				if (!foundOrderUrl) {
+					if (currentURL.match(requestUrlRegEx)) {
+						foundOrderUrl = true;
+						orderURL = currentURL;
 					}
-					console.log('\n');
-
-					if (!imageTesterRegEx.test(request.url())) pausedRequests.push(request);
-				} else {
-					paused = true; // pause, as we are processing a request now
-					request.continue();
 				}
-			}
-		});
+				if (['image', 'media', 'font'].indexOf(request.resourceType()) !== -1) {
+					return request.abort();
+				}
+				request.continue();
+			});
 
-		scrappingPage.on('response', (response) => {
-			console.log('response url: \t', response.url());
-			console.log('request stack: \t', pausedRequests);
-			nextRequest(); // continue with next request
-		});
+			await scrappingPage.goto(containerMeta.itemurl, { timeout: 0 });
+			await waitForOrderUrl(foundOrderUrl);
+			/*try {
+				await scrappingPage.waitForSelector(
+					'div#orders_histogram.jqplot-target div.jqplot-highlighter-tooltip'
+				);
+			} catch {}*/
+			rawData = await scrappingPage.content();
 
-		await scrappingPage.goto(containerMeta.itemurl, {
-			timeout: 0,
-		});
+			//go to the scraped order url
+			await scrappingPage.goto(orderURL);
+			await scrappingPage.waitForNetworkIdle();
+			orderData = await scrappingPage.content();
+			await scrappingPage.close();
+			await dbHandler.sqlQuery(saveSQLSyntax, [containerMeta.itemname, rawData, orderData]);
+		} catch (error) {
+			console.error('cant get container data');
+			console.error(error);
+		}
 	}
 
 	return;

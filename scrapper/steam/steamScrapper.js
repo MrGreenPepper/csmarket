@@ -146,7 +146,7 @@ function waitForOrderUrl(variable) {
 /**loads the containerUrls from the DB, scrapes the pageContent and filters requests for order data& saves it  */
 async function _scrapeContainers() {
 	let loadSQLSyntax = 'SELECT * FROM containerurls;';
-	let createRawTableSyntax = `CREATE TABLE IF NOT EXISTS containerRawContent (itemName TEXT UNIQUE, itemID NUMBER UNIQUE, pageContent TEXT, orderData TEXT);`;
+	let createRawTableSyntax = `CREATE TABLE IF NOT EXISTS containerRawContent (itemName TEXT UNIQUE, itemID INTEGER UNIQUE, pageContent TEXT, orderData TEXT);`;
 	let scrapeBrowser = await scBrowser.start();
 	let scrappingPage = await scrapeBrowser.newPage();
 	let saveSQLSyntax = `INSERT INTO containerRawContent (itemName, itemID, pagecontent, orderData) VALUES ($1, $2, $3, $4) 
@@ -158,7 +158,7 @@ async function _scrapeContainers() {
 
 	//create db for laterSave
 	try {
-		dbHandler.sqlQuery(createRawTableSyntax);
+		await dbHandler.sqlQuery(createRawTableSyntax);
 	} catch (error) {
 		//is already catched in the sqlQuery functionq
 	}
@@ -206,10 +206,10 @@ async function _scrapeContainers() {
 			//go to the scraped order url
 			await scrappingPage.goto(orderURL);
 			await scrappingPage.waitForNetworkIdle();
-			itemID = orderURL.match(itemIDregEx);
+			itemID = parseInt(orderURL.match(itemIDregEx));
 			orderData = await scrappingPage.content();
 			await scrappingPage.close();
-			await dbHandler.sqlQuery(saveSQLSyntax, [containerMeta.itemname, itemid, rawData, orderData]);
+			await dbHandler.sqlQuery(saveSQLSyntax, [containerMeta.itemname, itemID, rawData, orderData]);
 		} catch (error) {
 			console.error('cant get container data');
 			console.error(error);

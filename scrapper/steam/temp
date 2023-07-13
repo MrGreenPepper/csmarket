@@ -1,0 +1,251 @@
+await scrappingPage.on('response', (response) => {
+	console.log(response);
+
+	if (response.request().method === 'POST' && response.url === `${process.env.USERS_API_DOMAIN}/sessions`) {
+		expect(response.status).toEqual(400);
+	}
+	response = scrappingPage.on('response', (response) => response);
+});
+scrappingPage.on('request', (req) => {
+	if (req.resourceType() === 'xhr') {
+		req.abort();
+	} else {
+		req.continue();
+	}
+});
+
+/*	await scrappingPage.goto(
+			'https://steamcommunity.com/market/itemordershistogram?country=DE&language=german&currency=1&item_nameid=29205213&two_factor=0'
+		);
+*/
+
+const nextRequest = () => {
+	// continue the next request or "unpause"
+	if (pausedRequests.length === 0) {
+		paused = false;
+	} else {
+		// continue first request in "queue"
+		pausedRequests.shift()(); // calls the request.continue function
+	}
+};
+
+scrappingPage.on('request', (request) => {
+	if (paused) {
+		console.log('buffered request: \t', request.url());
+		pausedRequests.push(() => request.continue());
+	} else {
+		paused = true; // pause, as we are processing a request now
+		request.continue();
+	}
+});
+
+scrappingPage.on('requestfinished', async (request) => {
+	const response = await request.response();
+
+	const responseHeaders = response.headers();
+	let responseBody;
+	if (request.redirectChain().length === 0) {
+		// body can only be access for non-redirect responses
+		responseBody = await response.buffer();
+	}
+
+	let currentRequestUrl = request.url();
+	let test = requestUrlRegEx.test(currentRequestUrl);
+	console.log('resolved: \t\t', request.url());
+	if (requestUrlRegEx.test(currentRequestUrl)) {
+		const information = {
+			url: request.url(),
+			requestHeaders: request.headers(),
+			requestPostData: request.postData(),
+			responseHeaders: responseHeaders,
+			responseSize: responseHeaders['content-length'],
+			responseBody,
+		};
+		results.push(information);
+	}
+
+	nextRequest(); // continue with next request
+});
+
+scrappingPage.on('response', async (response) => {
+	nextRequest();
+});
+scrappingPage.on('requestfailed', (request) => {
+	// handle failed request
+	nextRequest();
+});
+
+
+*******************************************
+
+
+function setTimer(request, requestBuffer) {
+	return setTimeout(() => {
+		request.abort();
+		requestBuffer();
+	}, 3000);
+}
+
+function requestToAvoid() {}
+
+for (let containerMeta of containerUrls) {
+	containerMeta.itemurl = 'https://steamcommunity.com/market/listings/730/Revolution%20Case';
+	let requestUrlRegEx = /(steamcommunity\.com\/market\/itemordershistogram\?)/gim;
+	let itemIDregEx = /(?<=item_nameid=).*(?=&two)/gim;
+	let imageTesterRegEx = /\.png|\.jpg|\.gif/gim;
+	let paused = false;
+	let pausedRequests = [];
+
+	let results = [];
+	let timers = [];
+
+	await scrappingPage.setRequestInterception(true);
+	const nextRequest = () => {
+		// continue the next request or "unpause"
+		if (pausedRequests.length === 0) {
+			paused = false;
+		} else {
+			// continue first request in "queue"
+			let currentRequest = pausedRequests.shift(); // calls the request.continue function
+			currentRequest.continue();
+		}
+	};
+
+	scrappingPage.on('request', (request) => {
+		console.log('to buffered request: \t', request.url());
+		if (imageTesterRegEx.test(request.url())) {
+			console.warn('abort request: \t', request.url());
+			request.abort();
+		} else {
+			if (paused) {
+				/*	console.log('request stack: \t');
+				for (let reqStack of pausedRequests) {
+					console.log(reqStack.url());
+				}*/
+				console.log('\n');
+				pausedRequests.push(request);
+				timers.push(setTimer(request, nextRequest));
+			} else {
+				paused = true; // pause, as we are processing a request now
+				request.continue();
+			}
+		}
+	});
+
+	scrappingPage.on('response', (response) => {
+		console.log('response url: \t', response.url());
+		console.log('request stack: \t', pausedRequests);
+		clearTimeout(timers.shift());
+		nextRequest(); // continue with next request
+	});
+
+	await scrappingPage.goto(containerMeta.itemurl, {
+		timeout: 0,
+	});
+}
+
+return;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+****************************************************
+
+
+
+
+
+/**loads the containerUrls from the DB, scrapes the pageContent & saves it  */
+async function _scrapeContainers() {
+	let loadSQLSyntax = 'SELECT * FROM containerurls;';
+	let createRawTableSyntax = `CREATE TABLE IF NOT EXISTS containerRawContent (itemName TEXT UNIQUE, pageContent TEXT);`;
+	let scrapeBrowser = await scBrowser.start();
+	let scrappingPage = await scrapeBrowser.newPage();
+	let saveSQLSyntax = `INSERT INTO containerRawContent (itemName, pageContent) VALUES ($1, $2) 
+						ON CONFLICT (itemName) DO UPDATE SET pageContent=EXCLUDED.pageContent;`;
+
+	//get container URLS
+	let containerUrls = await dbHandler.sqlQuery(loadSQLSyntax);
+	containerUrls = containerUrls.rows;
+
+	//create db for laterSave
+	try {
+		dbHandler.sqlQuery(createRawTableSyntax);
+	} catch (error) {
+		//is already catched in the sqlQuery functionq
+	}
+
+	//loop, scrape and save urls rawContent
+
+	function requestToAvoid() {}
+
+	for (let containerMeta of containerUrls) {
+		containerMeta.itemurl = 'https://steamcommunity.com/market/listings/730/Revolution%20Case';
+		let requestUrlRegEx = /(steamcommunity\.com\/market\/itemordershistogram\?)/gim;
+		let itemIDregEx = /(?<=item_nameid=).*(?=&two)/gim;
+		let imageTesterRegEx = /\.png|\.jpg|images/gim;
+		let paused = false;
+		let pausedRequests = [];
+
+		let results = [];
+
+		await scrappingPage.setRequestInterception(true);
+		const nextRequest = () => {
+			// continue the next request or "unpause"
+			if (pausedRequests.length === 0) {
+				paused = false;
+			} else {
+				// continue first request in "queue"
+				let currentRequest = pausedRequests.shift(); // calls the request.continue function
+				currentRequest.continue();
+			}
+		};
+
+		scrappingPage.on('request', (request) => {
+			let currentUrl = request.url();
+			console.log('to buffer request: \t', currentUrl);
+
+			let testResult = currentUrl.includes('image') || currentUrl.includes('font');
+			console.log('test result: \t', testResult);
+			if (testResult) {
+				console.warn('abort request: \t', request.url());
+				request.abort();
+			} else {
+				if (paused) {
+					console.log('request stack: \t');
+					for (let reqStack of pausedRequests) {
+						console.log(reqStack.url());
+					}
+					console.log('\n');
+
+					if (!imageTesterRegEx.test(request.url())) pausedRequests.push(request);
+				} else {
+					paused = true; // pause, as we are processing a request now
+					request.continue();
+				}
+			}
+		});
+
+		scrappingPage.on('response', (response) => {
+			console.log('response url: \t', response.url());
+			console.log('request stack: \t', pausedRequests);
+			nextRequest(); // continue with next request
+		});
+
+		await scrappingPage.goto(containerMeta.itemurl, {
+			timeout: 0,
+		});
+	}
+
+	return;
+}

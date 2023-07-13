@@ -2,6 +2,7 @@ import * as scBrowser from '../tools/scrappingBrowser.js';
 import * as dbHandler from '../../tools/database/dbHandler.js';
 import * as extractor_container from './extractContainer.js';
 import * as statistcs from './getStatistics.js';
+import Puppeteer from 'puppeteer';
 
 /**
  *
@@ -155,52 +156,63 @@ async function _scrapeContainers() {
 	//loop, scrape and save urls rawContent
 
 	for (let containerMeta of containerUrls) {
+		// containerMeta.itemurl = 'https://steamcommunity.com/market/listings/730/Revolution%20Case';
+		containerMeta.itemurl =
+			'https://steamcommunity.com/market/itemordershistogram?country=DE&language=german&currency=3&item_nameid=1275323&two_factor=0';
+		let requestUrlRegEx = /(steamcommunity\.com\/market\/itemordershistogram\?)/gim;
+		let itemIDregEx = /(?<=item_nameid=).*(?=&two)/gim;
+		let imageTesterRegEx = /\.png|\.jpg|images/gim;
+		let paused = false;
+		let pausedRequests = [];
+
+		let results = [];
+
 		await scrappingPage.setRequestInterception(true);
+		const nextRequest = () => {
+			// continue the next request or "unpause"
+			if (pausedRequests.length === 0) {
+				paused = false;
+			} else {
+				// continue first request in "queue"
+				let currentRequest = pausedRequests.shift(); // calls the request.continue function
+				currentRequest.continue();
+			}
+		};
+
+		scrappingPage.on('request', (request) => {
+			let currentUrl = request.url();
+			console.log('to buffer request: \t', currentUrl);
+
+			let testResult = currentUrl.includes('image') || currentUrl.includes('font');
+			console.log('test result: \t', testResult);
+			if (testResult) {
+				console.warn('abort request: \t', request.url());
+				request.abort();
+			} else {
+				if (paused) {
+					console.log('request stack: \t');
+					for (let reqStack of pausedRequests) {
+						console.log(reqStack.url());
+					}
+					console.log('\n');
+
+					if (!imageTesterRegEx.test(request.url())) pausedRequests.push(request);
+				} else {
+					paused = true; // pause, as we are processing a request now
+					request.continue();
+				}
+			}
+		});
 
 		scrappingPage.on('response', (response) => {
-			console.log(response);
-
-			if (response.request().method === 'POST' && response.url === `${process.env.USERS_API_DOMAIN}/sessions`) {
-				expect(response.status).toEqual(400);
-			}
+			console.log('response url: \t', response.url());
+			console.log('request stack: \t', pausedRequests);
+			nextRequest(); // continue with next request
 		});
-		/*
-		scrappingPage.on('request', (req) => {
-			if (req.resourceType() === 'image') {
-				req.abort();
-			} else {
-				req.continue();
-				let res = req.response();
-				let ts;
-			}
-		});*/
 
-		const response = scrappingPage.on('response', (response) => response);
-		await scrappingPage.on('response', (response) => {
-			console.log(response);
-
-			if (response.request().method === 'POST' && response.url === `${process.env.USERS_API_DOMAIN}/sessions`) {
-				expect(response.status).toEqual(400);
-			}
+		await scrappingPage.goto(containerMeta.itemurl, {
+			timeout: 0,
 		});
-		await scrappingPage.goto(containerMeta.itemurl);
-		response = scrappingPage.on('response', (response) => response);
-		await scrappingPage.on('response', (response) => {
-			console.log(response);
-
-			if (response.request().method === 'POST' && response.url === `${process.env.USERS_API_DOMAIN}/sessions`) {
-				expect(response.status).toEqual(400);
-			}
-		});
-		let pageContent = await scrappingPage.content();
-
-		/*	await scrappingPage.goto(
-			'https://steamcommunity.com/market/itemordershistogram?country=DE&language=german&currency=1&item_nameid=29205213&two_factor=0'
-		);
-*/
-		await dbHandler.sqlQuery(saveSQLSyntax, [containerMeta.itemname, pageContent]);
-		let test = await delay(3000);
-		console.log(test);
 	}
 
 	return;

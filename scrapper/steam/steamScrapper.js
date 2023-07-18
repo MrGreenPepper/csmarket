@@ -2,7 +2,6 @@ import * as scBrowser from '../tools/scrappingBrowser.js';
 import * as dbHandler from '../../tools/database/dbHandler.js';
 import * as extractor_container from './extractContainer.js';
 import * as statistcs from './getStatistics.js';
-import Puppeteer from 'puppeteer';
 
 /**
  *
@@ -35,10 +34,10 @@ export async function scrappingProtocol({
 		_scrapeWeapons();
 	}
 	if (extractContainerContent) {
-		extractor_container.extractContainerContent();
+		await extractor_container.extractContainerContent();
 	}
 	if (calculateStatistics) {
-		await statistcs.getAll();
+		await statistcs.getAllStatistics();
 	}
 }
 

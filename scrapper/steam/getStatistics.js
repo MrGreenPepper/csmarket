@@ -1,5 +1,6 @@
 import * as dbHandler from '../../tools/database/dbHandler.js';
-
+import * as dbParser from '../../tools/database/parseDB.js';
+import * as SteamContainer from './SteamContainer.js';
 /**
  * Calculates all statistics from the historic data.
  * Therefore it loads the historic data from the db and slices them into separated arrays.
@@ -14,26 +15,34 @@ const loadRawDataTableName = 'containercontent';
  * 1. loads the container data
  * 2. calculates the statistics
  * 2. creates/updates single tables for the single containers containing the concerning statistic data*/
-export async function getAll() {
+export async function getAllStatistics() {
 	let sqlSyntaxes = {
 		loadItemNames: 'SELECT itemname FROM containercontent;',
-		loadItemContent: 'select historicdata from containercontent where itemname = $1',
+		loadItemContent: 'select historicdata, orderdata from containercontent where itemname = $1',
 		createTable: 'create table if not exists $1 ( ... )', //$1 = itemname
 	};
+	let itemNames;
 
-	let itemNames = await dbHandler.sqlQuery(sqlSyntaxes.loadItemNames).then((res) => res.rows);
-	//	.map((entry) => entry.itemname);
-	itemNames = itemNames.map((entry) => entry.itemname);
+	try {
+		itemNames = await dbHandler.sqlQuery(sqlSyntaxes.loadItemNames).then((res) => res.rows);
+		itemNames = itemNames.map((entry) => entry.itemname);
+	} catch (error) {
+		console.log('cant load itemnames for statistical calc loop');
+		console.log(error.message);
+		console.log(error.stack);
+	}
 
 	for (let currentName of itemNames) {
-		let historicData = await dbHandler
-			.sqlQuery(sqlSyntaxes.loadItemContent, [currentName])
-			.then((res) => res.rows[0].historicdata);
-		let dataArray = parseData(historicData);
-		let lifeTime = lifetimeContainer(dataArray);
-		dataArray.lifeTime = lifeTime;
-		dataArray = elasticityPrice(dataArray);
-		dataArray = tradeVolumne(dataArray);
+		let currentContainer = await SteamContainer.__init(currentName);
+		plainData = await dbHandler.sqlQuery(sqlSyntaxes.loadItemContent, [currentName]);
+		historicData = dbParser.parseJSONArray(plainData.rows[0].historicdata);
+		orderData = dbParser.parseJSONArray(plainData.rows[0].orderdata);
+
+		//calc the statistics
+		lifeTime = lifetimeContainer(historicData);
+		priceElasticityTrade = elasticityPrice(historicData);
+		priceElasticityOrder = elasticityPrice(orderData);
+		tradeVolumnes = tradeVolumnes();
 		console.log('test');
 		/**wanted statistcs
 		 *
@@ -59,7 +68,7 @@ function allMedians(dataArray) {}
  * @param {string} category - keyName in the dataArray - Entries to calculate with
  * @returns {array} dataArray - with median#timeSpan as key
  */
-function calcMedian(dataArray, timeSpan, category) {
+function calcMedian() {
 	let median;
 	let medianObj;
 	let values = [];
@@ -81,13 +90,6 @@ function calcMedian(dataArray, timeSpan, category) {
 }
 function priceVariation(dataArray, timeSpan) {}
 
-function lifetimeContainer(dataArray) {
-	let years = Math.floor(dataArray.length / 356);
-	let days = dataArray.length % 356;
-	let lifeTime = { years: years, days: days };
-	return lifeTime;
-}
-
 function elasticityPrice(dataArray) {
 	//TODO: error 2347/2348 ... check NaN
 	let currentElasticity;
@@ -100,7 +102,6 @@ function elasticityPrice(dataArray) {
 			((currentData.count - previousData.count) / (currentData.price - previousData.price)) *
 			(currentData.price / previousData.price);
 		dataArray[i].priceElasticity = currentElasticity;
-		//TODO check elastiicty and it doenst saves it in the obj
 	}
 	return dataArray;
 }
@@ -126,42 +127,6 @@ function calculateMetaStatistics(dateArray, priceArray, countArray) {
  * @param {boolean}	approximateMissingDays 	- default = true, the historic data is incomplete, instead of take care later in every single step we approximate the missing days
  * @returns {[dataArray: array} [dateArray, priceArray, countArray]		-	the parsed, splitted and cleaned data
  */
-function parseData(historicData, approximateMissingDays = true) {
-	let dateArray = [];
-	let priceArray = [];
-	let countArray = [];
-	let dataArray = [];
-	let dateRegex = /[a-z,A-Z]{3}.[0-9]{2}.[0-9]{4}/gim;
-	let dayRegex = / [0-9]{2} /gim;
-	let yearRegex = /[0-9]{4}/gim;
-	let monthRegex = /[a-z,A-Z]{3}/gim;
-
-	//split into arrays
-	historicData.forEach((entry) => {
-		entry = JSON.parse(entry);
-		dateArray.push(entry.date);
-		priceArray.push(entry.price);
-		countArray.push(entry.count);
-	});
-	//clean the dates
-	dateArray = dateArray.map((date, index) => {
-		date = date.match(dateRegex)[0];
-		let day = date.match(dayRegex)[0].trim();
-		day = parseInt(day);
-		let month = date.match(monthRegex)[0];
-		let year = date.match(yearRegex)[0];
-		year = parseInt(year);
-		dataArray.push({ day: day, month: month, year: year, price: priceArray[index], count: countArray[index] });
-		return { day: day, month: month, year: year };
-	});
-	//tests the data
-	if (dateArray.length == priceArray.length && dateArray.length == countArray.length) {
-	} else throw console.error('unmatching7 historic data');
-	//approximate missing dates
-	if (approximateMissingDays) dataArray = _approximateMissingDays(dataArray);
-
-	return dataArray;
-}
 
 function _approximateMissingDays(dataArray) {
 	let fixedDataArray = [];

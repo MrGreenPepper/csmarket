@@ -1,32 +1,74 @@
-import * as ScrappingBrowser from '../tools/scrappingBrowser.js';
 import * as dbHandler from '../../tools/database/dbHandler.js';
-import * as tools from './containerTools.js';
 import { MarketObject } from '../MarketObject.js';
+import * as dbParser from '../../tools/database/parseDB.js';
 
+let sqlSyntaxes = {
+	loadItemData: 'select historicdata, orderdata from containercontent where itemname = $1',
+	saveItemData: `INSERT INTO containerContent (itemname, historicData, orderData) VALUES ($1, $2, $3) 
+					ON CONFLICT (itemName) DO UPDATE SET historicData=EXCLUDED.historicData, orderData=excluded.orderData;`,
+};
+
+export async function __init(containerName) {
+	let containerData = await dbHandler.sqlQuery(sqlSyntaxes.loadItemData, [containerName]).then((res) => res.rows[0]);
+	let steamContainer = new SteamContainer(containerName, containerData);
+
+	return steamContainer;
+}
 export class SteamContainer extends MarketObject {
-	constructor(url) {
-		this.url = url;
-		this.status = { gotRawData: false };
-		this.containerName;
-		this.containerData;
+	constructor(containerName, containerData) {
+		super();
+		this.containerName = containerName;
+		//rawData
+		this.containerData = containerData;
+		this.historicData = dbParser.parseJSONArray(containerData.historicdata);
+		this.orderData = dbParser.parseJSONArray(containerData.orderdata);
+		//statistics
+		this.priceElasticityOrder = this.priceElasticity(this.orderData);
+		this.priceElasticityTrade = this.priceElasticity(this.historicData);
+		this.lifeTime = this.lifetimeContainer();
+		this.historicTradeVolumnes = this.tradeVolumne(this.historicData);
+		this.orderTradeVolumnes = this.tradeVolumne(this.orderData);
 	}
 
-	/*	scrapes all data from the containerUrls and saves them into the individual db tables */
-	async scrapData() {
-		this.containerData = { historicData };
-		//start browser and go to the site
-		let scrappingBrowser = await ScrappingBrowser.start();
-		let scrappingPage = await scrappingBrowser.newPage();
-		await scrappingPage.goto(this.url);
-		await scrappingPage.click('a.zoomopt[style="padding-right: 0"');
-		let pageContent = await scrappingPage.content();
-
-		let historicData = tools.pageContentToHistoricData(pageContent);
-		this.containerData.historicData = historicData;
+	async updateDefault() {
+		await dbHandler.sqlQuery(saveItemData, [this.containerName, this.historicData, this.orderData]);
 	}
 
-	async updateDBData() {
-		let sqlSyntax = '';
-		let conn = dbHandler.sqlQuery();
+	priceElasticity(dataArray) {
+		let priceElasticity = [];
+		let currentElasticity;
+		let currentData;
+		let previousData;
+		for (let i = 1; i < dataArray.length; i++) {
+			previousData = dataArray[i - 1];
+			currentData = dataArray[i];
+			currentElasticity =
+				((currentData.count - previousData.count) / (currentData.price - previousData.price)) *
+				(currentData.price / previousData.price);
+			priceElasticity.push(currentElasticity);
+		}
+		return priceElasticity;
+	}
+
+	/** it just converts the array length into a timespan,
+	 * can be falsy if data approximation wasn't on and some data are missing*/
+	lifetimeContainer() {
+		let years = Math.floor(this.historicData.length / 356);
+		let days = this.historicData.length % 356;
+		let lifeTime = { years: years, days: days };
+		return lifeTime;
+	}
+
+	tradeVolumne(dataArray) {
+		let tradeVolumne = [];
+		let currentTradeVolumne;
+		let currentData;
+
+		for (let i = 0; i < dataArray.length; i++) {
+			currentData = dataArray[i];
+			currentTradeVolumne = dataArray[i].count * dataArray[i].price;
+			tradeVolumne.push(currentTradeVolumne);
+		}
+		return tradeVolumne;
 	}
 }

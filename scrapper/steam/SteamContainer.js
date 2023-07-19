@@ -18,23 +18,32 @@ export class SteamContainer extends MarketObject {
 	constructor(containerName, containerData) {
 		super();
 		this.containerName = containerName;
+		this.concerningGame = 'counter-strike';
 		//rawData
-		this.containerData = containerData;
+		this.plainData = containerData;
 		this.historicData = dbParser.parseJSONArray(containerData.historicdata);
 		this.orderData = dbParser.parseJSONArray(containerData.orderdata);
 		//statistics
-		this.priceElasticityOrder = this.priceElasticity(this.orderData);
-		this.priceElasticityTrade = this.priceElasticity(this.historicData);
+		this.priceElasticity = {};
+		this.calcPriceElasticity('order');
+		this.calcPriceElasticity('historic');
 		this.lifeTime = this.lifetimeContainer();
-		this.historicTradeVolumnes = this.tradeVolumne(this.historicData);
-		this.orderTradeVolumnes = this.tradeVolumne(this.orderData);
+		//calc trade volumns
+		this.tradeVolumes = {};
+		this.tradeVolumes.historicArray;
+		this.tradeVolumes.historicSum;
+		this.tradeVolumes.orderArray;
+		this.tradeVolumes.orderSum;
+		this.calcTradeVolumes('historic');
+		this.calcTradeVolumes('order');
 	}
 
 	async updateDefault() {
 		await dbHandler.sqlQuery(saveItemData, [this.containerName, this.historicData, this.orderData]);
 	}
 
-	priceElasticity(dataArray) {
+	calcPriceElasticity(dataSetName) {
+		let dataArray = this[dataSetName + 'Data'];
 		let priceElasticity = [];
 		let currentElasticity;
 		let currentData;
@@ -45,9 +54,10 @@ export class SteamContainer extends MarketObject {
 			currentElasticity =
 				((currentData.count - previousData.count) / (currentData.price - previousData.price)) *
 				(currentData.price / previousData.price);
+			currentElasticity = parseFloat(currentElasticity.toFixed(3));
 			priceElasticity.push(currentElasticity);
 		}
-		return priceElasticity;
+		this.priceElasticity[dataSetName] = priceElasticity;
 	}
 
 	/** it just converts the array length into a timespan,
@@ -59,16 +69,24 @@ export class SteamContainer extends MarketObject {
 		return lifeTime;
 	}
 
-	tradeVolumne(dataArray) {
-		let tradeVolumne = [];
+	calcTradeVolumes(volumneName) {
+		let tradeVolumnes = [];
 		let currentTradeVolumne;
 		let currentData;
-
+		let dataArray;
+		let dataName = volumneName + 'Data';
+		let arrayName = volumneName + 'Array';
+		let sumName = volumneName + 'Sum';
+		//calc historic first
+		dataArray = this[dataName];
 		for (let i = 0; i < dataArray.length; i++) {
 			currentData = dataArray[i];
 			currentTradeVolumne = dataArray[i].count * dataArray[i].price;
-			tradeVolumne.push(currentTradeVolumne);
+			currentTradeVolumne = parseFloat(currentTradeVolumne.toFixed(3));
+			tradeVolumnes.push(currentTradeVolumne);
 		}
-		return tradeVolumne;
+
+		this.tradeVolumes[arrayName] = tradeVolumnes;
+		this.tradeVolumes[sumName] = parseFloat(tradeVolumnes.reduce((pre, cur) => (pre += cur), 0).toFixed(3));
 	}
 }

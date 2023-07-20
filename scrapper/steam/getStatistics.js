@@ -33,7 +33,7 @@ export async function getAllStatistics() {
 	}
 
 	for (let currentName of itemNames) {
-		let currentContainer = await SteamContainer.__init(currentName);
+		let currentContainer = await SteamContainer._init(currentName);
 		plainData = await dbHandler.sqlQuery(sqlSyntaxes.loadItemContent, [currentName]);
 		historicData = dbParser.parseJSONArray(plainData.rows[0].historicdata);
 		orderData = dbParser.parseJSONArray(plainData.rows[0].orderdata);

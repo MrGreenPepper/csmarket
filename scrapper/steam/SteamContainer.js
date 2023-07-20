@@ -8,7 +8,7 @@ let sqlSyntaxes = {
 					ON CONFLICT (itemName) DO UPDATE SET historicData=EXCLUDED.historicData, orderData=excluded.orderData;`,
 };
 
-export async function __init(containerName) {
+export async function _init(containerName) {
 	let containerData = await dbHandler.sqlQuery(sqlSyntaxes.loadItemData, [containerName]).then((res) => res.rows[0]);
 	let steamContainer = new SteamContainer(containerName, containerData);
 

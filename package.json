@@ -7,7 +7,8 @@
 	"scripts": {
 		"ele": "npm --prefix ./electron/ run start",
 		"scrap": "npm ./scrapper/mainScrapper.js",
-		"front": "npm --prefix ./frontend/ run start"
+		"front": "npm --prefix ./frontend/ run start",
+		"server": "npm --prefix ./server/ run start"
 	},
 	"author": "MrGreenPepper",
 	"license": "ISC",

@@ -1,6 +1,6 @@
 import * as steamScrapper from './steam/steamScrapper.js';
 
-export async function start() {
+(async function start() {
 	//scrapping basic item data from steam
 	await steamScrapper.scrappingProtocol({
 		renewData: false,
@@ -12,4 +12,4 @@ export async function start() {
 
 	//scBrowser = scrappingBrowser.start();
 	let scrappingURL;
-}
+});

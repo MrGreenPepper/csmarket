@@ -1,4 +1,4 @@
-import * as dbHandler from '../../tools/database/dbHandler.js';
+import * as dbHandler from '../../tools/database/dbHandler.mjs';
 import { MarketObject } from '../MarketObject.js';
 import * as dbParser from '../../tools/database/parseDB.js';
 

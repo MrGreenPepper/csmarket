@@ -12,19 +12,22 @@ const loadRawDataTableName = 'containercontent';
 
 /**
  * Calculates the statistics to the containers
- * 1. loads the container data
- * 2. calculates the statistics
- * 2. creates/updates single tables for the single containers containing the concerning statistic data*/
+ * 1. loads the container names
+ * 2. creates an containerObject
+ * 3. the container object calculates the statistics on hisself
+ * 2. creates/updates tables for the single containers containing the concerning statistic data*/
 export async function getAllStatistics() {
-	let sqlSyntaxes = {
+	let sqlQueries = {
 		loadItemNames: 'SELECT itemname FROM containercontent;',
 		loadItemContent: 'select historicdata, orderdata from containercontent where itemname = $1',
-		createTable: 'create table if not exists $1 ( ... )', //$1 = itemname
+		createTable:
+			'create table if not exists containerStatistics ( itemname TEXT UNIQUE, historicData TEXT[], orderData TEXT[], priceElasticity JSONb, tradeVolumes JSONb, lifeTime JSONb )', //$1 = itemname
 	};
 	let itemNames;
 
+	//getting the itemNames
 	try {
-		itemNames = await dbHandler.sqlQuery(sqlSyntaxes.loadItemNames).then((res) => res.rows);
+		itemNames = await dbHandler.sqlQuery(sqlQueries.loadItemNames).then((res) => res.rows);
 		itemNames = itemNames.map((entry) => entry.itemname);
 	} catch (error) {
 		console.log('cant load itemnames for statistical calc loop');
@@ -32,18 +35,19 @@ export async function getAllStatistics() {
 		console.log(error.stack);
 	}
 
+	//create the statistics table
+	try {
+		let res = await dbHandler.sqlQuery(sqlQueries.createTable);
+		console.log(res);
+	} catch (error) {
+		console.log(error);
+	}
+
 	for (let currentName of itemNames) {
 		let currentContainer = await SteamContainer._init(currentName);
-		plainData = await dbHandler.sqlQuery(sqlSyntaxes.loadItemContent, [currentName]);
-		historicData = dbParser.parseJSONArray(plainData.rows[0].historicdata);
-		orderData = dbParser.parseJSONArray(plainData.rows[0].orderdata);
+		await currentContainer.saveDBData();
 
 		//calc the statistics
-		lifeTime = lifetimeContainer(historicData);
-		priceElasticityTrade = elasticityPrice(historicData);
-		priceElasticityOrder = elasticityPrice(orderData);
-		tradeVolumnes = tradeVolumnes();
-		console.log('test');
 		/**wanted statistcs
 		 *
 		 */
@@ -54,7 +58,6 @@ export async function getAllStatistics() {
 		//relation markt zu handelsvolumen
 		//medianPrice
 		//varianz
-		//.. bräuchte die angebots und nachfrage daten
 	}
 }
 

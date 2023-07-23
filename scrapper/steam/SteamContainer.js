@@ -2,14 +2,16 @@ import * as dbHandler from '../../tools/database/dbHandler.mjs';
 import { MarketObject } from '../MarketObject.js';
 import * as dbParser from '../../tools/database/parseDB.js';
 
-let sqlSyntaxes = {
-	loadItemData: 'select historicdata, orderdata from containercontent where itemname = $1',
-	saveItemData: `INSERT INTO containerContent (itemname, historicData, orderData) VALUES ($1, $2, $3) 
-					ON CONFLICT (itemName) DO UPDATE SET historicData=EXCLUDED.historicData, orderData=excluded.orderData;`,
-};
-
 export async function _init(containerName) {
-	let containerData = await dbHandler.sqlQuery(sqlSyntaxes.loadItemData, [containerName]).then((res) => res.rows[0]);
+	let sqlQueries = {
+		loadItemData: {
+			syntax: 'select historicdata, orderdata from containercontent where itemname = $1',
+			variables: [containerName],
+		},
+	};
+	let containerData = await dbHandler
+		.sqlQuery(sqlQueries.loadItemData.syntax, sqlQueries.loadItemData.variables)
+		.then((res) => res.rows[0]);
 	let steamContainer = new SteamContainer(containerName, containerData);
 
 	return steamContainer;
@@ -36,11 +38,30 @@ export class SteamContainer extends MarketObject {
 		this.tradeVolumes.orderSum;
 		this.calcTradeVolumes('historic');
 		this.calcTradeVolumes('order');
+		this.sqlQueries = {
+			saveItemData: {
+				syntax: `INSERT INTO containerStatistics (itemname, historicData , orderData , priceElasticity, tradeVolumes, lifeTime) VALUES ($1, $2, $3, $4, $5, $6)
+							ON CONFLICT (itemname) DO UPDATE SET
+							historicData = EXCLUDED.historicData , 
+							orderData = EXCLUDED.orderData , 
+							priceElasticity = EXCLUDED.priceElasticity, 
+							tradeVolumes = EXCLUDED.tradeVolumes, 
+							lifeTime = EXCLUDED.lifeTime`,
+				variables: [
+					this.containerName,
+					this.historicData,
+					this.orderData,
+					this.priceElasticity,
+					this.tradeVolumnes,
+					this.lifeTime,
+				],
+			},
+		};
 	}
 
-	async updateDefault() {
-		await dbHandler.sqlQuery(saveItemData, [this.containerName, this.historicData, this.orderData]);
-	}
+	saveDBData = async function () {
+		await dbHandler.sqlQuery(this.sqlQueries.saveItemData.syntax, this.sqlQueries.saveItemData.variables);
+	};
 
 	calcPriceElasticity(dataSetName) {
 		let dataArray = this[dataSetName + 'Data'];

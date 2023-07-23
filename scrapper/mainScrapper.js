@@ -9,7 +9,4 @@ import * as steamScrapper from './steam/steamScrapper.js';
 		extractContainerContent: false,
 		calculateStatistics: true,
 	});
-
-	//scBrowser = scrappingBrowser.start();
-	let scrappingURL;
-});
+})();

@@ -1,4 +1,4 @@
-import * as dbHandler from '../../tools/database/dbHandler.js';
+import * as dbHandler from '../../tools/database/dbHandler.mjs';
 
 /** Cuts the order data out of the raw page content. first slice the raw text then parses it into json
  * finishes by filtering the data

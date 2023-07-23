@@ -1,5 +1,5 @@
 import * as scBrowser from '../tools/scrappingBrowser.js';
-import * as dbHandler from '../../tools/database/dbHandler.js';
+import * as dbHandler from '../../tools/database/dbHandler.mjs';
 import * as extractor_container from './extractContainer.js';
 import * as statistcs from './getStatistics.js';
 

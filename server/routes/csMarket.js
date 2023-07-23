@@ -33,7 +33,7 @@ router.get('/container/statistics', function (req, res, next) {
 	console.log(req.query);
 	let itemname = req.query.itemName;
 	try {
-		db.multi('SELECT * FROM containercontent WHERE itemname = $1', [itemname]).then((data) => {
+		db.multi('SELECT * FROM containerstatistics WHERE itemname = $1', [itemname]).then((data) => {
 			data = data[0];
 			res.send(data);
 		});

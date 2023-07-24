@@ -65,6 +65,8 @@ export async function extractContainerContent() {
 			let orderDataRaw = currentItemRawData.rows[0].orderdata;
 
 			//3. extract the data
+			let currentSellPrice = getSellPrice(pageContentRaw);
+			let currentBuyPrice = getBuyPrice(pageContentRaw);
 			let historicData = pageContentToHistoricData(pageContentRaw);
 			let orderData = orderRawDataToOrderData(orderDataRaw);
 			console.log('');
@@ -77,6 +79,12 @@ export async function extractContainerContent() {
 			console.error(error.stack);
 		}
 	}
+}
+
+function getSellPrice(pageContent) {
+	let regex = {};
+	regex.buyCountSum = /(?<="market_commodity_orders_header_promote">).*(?=<\/span>.Kaufaufträge)/gim;
+	regex.buyPrice = /(?<="market_commodity_orders_header_promote">).*(?=<\/span>.Kaufaufträge)/gim;
 }
 
 /** slices the historic graph data out of the html source code

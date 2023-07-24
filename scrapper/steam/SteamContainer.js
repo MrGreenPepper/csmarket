@@ -52,7 +52,7 @@ export class SteamContainer extends MarketObject {
 					this.historicData,
 					this.orderData,
 					this.priceElasticity,
-					this.tradeVolumnes,
+					this.tradeVolumes,
 					this.lifeTime,
 				],
 			},

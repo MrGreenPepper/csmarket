@@ -6,7 +6,7 @@ import * as steamScrapper from './steam/steamScrapper.js';
 		renewData: false,
 		scrapeUrls: false,
 		scrapeContainer: false,
-		extractContainerContent: false,
+		extractContainerContent: true,
 		calculateStatistics: true,
 	});
 })();

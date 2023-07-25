@@ -43,11 +43,12 @@ function orderRawDataToOrderData(rawOrderData) {
 export async function extractContainerContent() {
 	let itemNames = await dbHandler.sqlQuery('SELECT itemname FROM containerurls');
 	let sqlSyntaxes = {
-		loadContent: 'SELECT pagecontent, orderdata FROM containerrawcontent WHERE itemname = $1;',
+		loadContent:
+			'SELECT pagecontent, orderdata, currentbuy, currentsale FROM containerrawcontent WHERE itemname = $1;',
 		createTable:
-			'CREATE TABLE IF NOT EXISTS containerContent (itemname TEXT UNIQUE, historicData TEXT[], orderData TEXT[]);',
-		saveData: `INSERT INTO containerContent (itemname, historicData, orderData) VALUES ($1, $2, $3) 
-					ON CONFLICT (itemName) DO UPDATE SET historicData=EXCLUDED.historicData, orderData=excluded.orderData;`,
+			'CREATE TABLE IF NOT EXISTS containerContent (itemname TEXT UNIQUE, historicData TEXT[], orderData TEXT[], currentPrices JSONb);',
+		saveData: `INSERT INTO containerContent (itemname, historicData, orderData, currentPrices) VALUES ($1, $2, $3, $4) 
+					ON CONFLICT (itemName) DO UPDATE SET historicData=EXCLUDED.historicData, orderData=excluded.orderData, currentPrices = EXCLUDED.currentPrices;`,
 	};
 
 	//1. create the db table if not exists
@@ -63,15 +64,21 @@ export async function extractContainerContent() {
 
 			let pageContentRaw = currentItemRawData.rows[0].pagecontent;
 			let orderDataRaw = currentItemRawData.rows[0].orderdata;
+			let currentbuy = currentItemRawData.rows[0].currentbuy;
+			let currentsale = currentItemRawData.rows[0].currentsale;
 
 			//3. extract the data
-			let currentSellPrice = getSellPrice(pageContentRaw);
-			let currentBuyPrice = getBuyPrice(pageContentRaw);
+			let currentPrices = getCurrentPrices(currentbuy);
 			let historicData = pageContentToHistoricData(pageContentRaw);
 			let orderData = orderRawDataToOrderData(orderDataRaw);
 			console.log('');
 			//4. save into the new table
-			dbResponse = await dbHandler.sqlQuery(sqlSyntaxes.saveData, [currentItemName, historicData, orderData]);
+			dbResponse = await dbHandler.sqlQuery(sqlSyntaxes.saveData, [
+				currentItemName,
+				historicData,
+				orderData,
+				currentPrices,
+			]);
 			console.log('dbResponse - save historic Data:\t', dbResponse);
 		} catch (error) {
 			console.error('cant extract data from item:\t', entry, '\n');
@@ -81,7 +88,27 @@ export async function extractContainerContent() {
 	}
 }
 
-function getSellPrice(pageContent) {
+function getCurrentPrices(pageContent) {
+	//there are 2 kinds of websites presenting the container ... yet i dont know when steam uses which kind, most probably when there are fewer offers it swaps
+	let prices = {};
+	prices.buyPrice = NaN;
+	prices.sellPrice = NaN;
+	prices.buyCount = NaN;
+	prices.sellCount = NaN;
+	//first website type
+	/*
+	let sellCountRegex = /(?<=_promote">)[0-9]*(?=<\/span>)/gim;
+	let sellPriceRegex = /(?<=(€|\$))[0-9]{1,5}\.[0-9]{2}(?=<\/span>.*zum Verkauf)/gim;
+	let buyCountRegex = /(?<=_promote">)[0-9]*(?=<\/span>.*Kaufaufträge für)/gim;
+	let buyPriceRegex = /(?<=(€|\$))[0-9]{1,5}\.[0-9]{2}(?=<\/span>.*oder weniger)/gim;
+
+	prices.buyCount = pageContent.match(buyCountRegex);
+	prices.buyPrice = pageContent.match(buyPriceRegex);
+	prices.sellCount = pageContent.match(sellCountRegex);
+	prices.sellPrice = pageContent.match(sellPriceRegex);
+	*/
+	let test = pageContentRaw.match(/(?<=\$|\€)[0-9]\.[0-9]{2}/gim);
+
 	let regex = {};
 	regex.buyCountSum = /(?<="market_commodity_orders_header_promote">).*(?=<\/span>.Kaufaufträge)/gim;
 	regex.buyPrice = /(?<="market_commodity_orders_header_promote">).*(?=<\/span>.Kaufaufträge)/gim;

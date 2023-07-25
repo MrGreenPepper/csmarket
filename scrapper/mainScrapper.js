@@ -5,7 +5,7 @@ import * as steamScrapper from './steam/steamScrapper.js';
 	await steamScrapper.scrappingProtocol({
 		renewData: false,
 		scrapeUrls: false,
-		scrapeContainer: false,
+		scrapeContainer: true,
 		extractContainerContent: true,
 		calculateStatistics: true,
 	});

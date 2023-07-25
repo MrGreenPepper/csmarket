@@ -145,11 +145,11 @@ function waitForOrderUrl(variable) {
 /**loads the containerUrls from the DB, scrapes the pageContent and filters requests for order data& saves it  */
 async function _scrapeContainers() {
 	let loadSQLSyntax = 'SELECT * FROM containerurls;';
-	let createRawTableSyntax = `CREATE TABLE IF NOT EXISTS containerRawContent (itemName TEXT UNIQUE, itemID INTEGER UNIQUE, pageContent TEXT, orderData TEXT);`;
+	let createRawTableSyntax = `CREATE TABLE IF NOT EXISTS containerRawContent (itemName TEXT UNIQUE, itemID INTEGER UNIQUE, pageContent TEXT, orderData TEXT, currentBuy TEXT, currentSale TEXT);`;
 	let scrapeBrowser = await scBrowser.start();
 	let scrappingPage = await scrapeBrowser.newPage();
-	let saveSQLSyntax = `INSERT INTO containerRawContent (itemName, itemID, pagecontent, orderData) VALUES ($1, $2, $3, $4) 
-						ON CONFLICT (itemName) DO UPDATE SET pageContent=EXCLUDED.pageContent, orderData = EXCLUDED.orderData;`;
+	let saveSQLSyntax = `INSERT INTO containerRawContent (itemName, itemID, pagecontent, orderData, currentBuy, currentSale) VALUES ($1, $2, $3, $4, $5, $6) 
+						ON CONFLICT (itemName) DO UPDATE SET pageContent=EXCLUDED.pageContent, orderData = EXCLUDED.orderData, currentBuy = EXCLUDED.currentBuy, currentSale = EXCLUDED.currentSale;`;
 
 	//get container URLS
 	let containerUrls = await dbHandler.sqlQuery(loadSQLSyntax);
@@ -175,7 +175,9 @@ async function _scrapeContainers() {
 			let orderURL;
 			let orderData;
 			let rawData;
-
+			let currentSale = 'no orders';
+			let currentBuy = 'no orders';
+			//get the orderData api url
 			await scrappingPage.setRequestInterception(true);
 
 			scrappingPage.on('request', (request) => {
@@ -200,6 +202,10 @@ async function _scrapeContainers() {
 					'div#orders_histogram.jqplot-target div.jqplot-highlighter-tooltip'
 				);
 			} catch {}*/
+
+			//try getting currentPrices
+			let test;
+			[currentBuy, currentSale] = await scrapePrices(scrappingPage);
 			rawData = await scrappingPage.content();
 
 			//go to the scraped order url
@@ -208,7 +214,14 @@ async function _scrapeContainers() {
 			itemID = parseInt(orderURL.match(itemIDregEx));
 			orderData = await scrappingPage.content();
 			await scrappingPage.close();
-			await dbHandler.sqlQuery(saveSQLSyntax, [containerMeta.itemname, itemID, rawData, orderData]);
+			await dbHandler.sqlQuery(saveSQLSyntax, [
+				containerMeta.itemname,
+				itemID,
+				rawData,
+				orderData,
+				currentBuy,
+				currentSale,
+			]);
 		} catch (error) {
 			console.error('cant get container data');
 			console.error(error);
@@ -217,7 +230,18 @@ async function _scrapeContainers() {
 
 	return;
 }
+async function scrapePrices(scrappingPage) {
+	let currentSale = 'no orders';
+	let currentBuy = 'no orders';
+	try {
+		currentSale = await scrappingPage.$eval('#market_commodity_forsale', (res) => res.innerText);
+	} catch {}
+	try {
+		currentBuy = await scrappingPage.$eval('#market_commodity_buyrequests', (res) => res.innerText);
+	} catch {}
 
+	return [currentBuy, currentSale];
+}
 function delay(ms) {
 	return new Promise((res) => setTimeout(res, ms));
 }

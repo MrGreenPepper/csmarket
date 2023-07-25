@@ -5,7 +5,7 @@ import * as dbParser from '../../tools/database/parseDB.js';
 export async function _init(containerName) {
 	let sqlQueries = {
 		loadItemData: {
-			syntax: 'select historicdata, orderdata from containercontent where itemname = $1',
+			syntax: 'select * from containercontent where itemname = $1',
 			variables: [containerName],
 		},
 	};

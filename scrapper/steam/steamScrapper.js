@@ -203,10 +203,10 @@ async function _scrapeContainers() {
 				);
 			} catch {}*/
 
-			//try getting currentPrices
-			let test;
-			[currentBuy, currentSale] = await scrapePrices(scrappingPage);
+			//try getting currentPrices ... need to wait until page loaded dynamic contents too
+			await scrappingPage.waitForSelector('span.market_commodity_orders_header_promote');
 			rawData = await scrappingPage.content();
+			[currentBuy, currentSale] = await scrapePrices(scrappingPage);
 
 			//go to the scraped order url
 			await scrappingPage.goto(orderURL);
@@ -233,6 +233,7 @@ async function _scrapeContainers() {
 async function scrapePrices(scrappingPage) {
 	let currentSale = 'no orders';
 	let currentBuy = 'no orders';
+	await scrappingPage;
 	try {
 		currentSale = await scrappingPage.$eval('#market_commodity_forsale', (res) => res.innerText);
 	} catch {}

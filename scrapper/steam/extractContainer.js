@@ -58,6 +58,7 @@ export async function extractContainerContent() {
 	//2.load raw data. extract the historic data and save them into the new table
 	for (let entry of itemNames.rows) {
 		try {
+			let currentPrices = {};
 			//load raw data
 			let currentItemName = entry.itemname;
 			let currentItemRawData = await dbHandler.sqlQuery(sqlSyntaxes.loadContent, [currentItemName]);
@@ -68,7 +69,8 @@ export async function extractContainerContent() {
 			let currentsale = currentItemRawData.rows[0].currentsale;
 
 			//3. extract the data
-			let currentPrices = getCurrentPrices(currentbuy);
+			currentPrices.buy = getCurrentPrices(currentbuy);
+			currentPrices.sale = getCurrentPrices(currentsale);
 			let historicData = pageContentToHistoricData(pageContentRaw);
 			let orderData = orderRawDataToOrderData(orderDataRaw);
 			console.log('');
@@ -88,14 +90,21 @@ export async function extractContainerContent() {
 	}
 }
 
-function getCurrentPrices(pageContent) {
-	//there are 2 kinds of websites presenting the container ... yet i dont know when steam uses which kind, most probably when there are fewer offers it swaps
-	let prices = {};
-	prices.buyPrice = NaN;
-	prices.sellPrice = NaN;
-	prices.buyCount = NaN;
-	prices.sellCount = NaN;
-	//first website type
+function getCurrentPrices(optionSentence) {
+	let regex = /[0-9]{1,9}/gim;
+	let currencyRegex = /.(?=[0-9]*\.[0-9]{2})/gim;
+
+	let regResult = null;
+	let count = null;
+	let price = null;
+	let currency = null;
+
+	try {
+		regResult = optionSentence.match(regex);
+		count = regResult[0];
+		price = parseFloat(regResult[1] + '.' + regResult[2]);
+		currency = optionSentence.match(currencyRegex)[0];
+	} catch {}
 	/*
 	let sellCountRegex = /(?<=_promote">)[0-9]*(?=<\/span>)/gim;
 	let sellPriceRegex = /(?<=(€|\$))[0-9]{1,5}\.[0-9]{2}(?=<\/span>.*zum Verkauf)/gim;
@@ -107,11 +116,11 @@ function getCurrentPrices(pageContent) {
 	prices.sellCount = pageContent.match(sellCountRegex);
 	prices.sellPrice = pageContent.match(sellPriceRegex);
 	*/
-	let test = pageContentRaw.match(/(?<=\$|\€)[0-9]\.[0-9]{2}/gim);
-
-	let regex = {};
+	/*
 	regex.buyCountSum = /(?<="market_commodity_orders_header_promote">).*(?=<\/span>.Kaufaufträge)/gim;
 	regex.buyPrice = /(?<="market_commodity_orders_header_promote">).*(?=<\/span>.Kaufaufträge)/gim;
+	*/
+	return { count: count, price: price, currency: currency };
 }
 
 /** slices the historic graph data out of the html source code

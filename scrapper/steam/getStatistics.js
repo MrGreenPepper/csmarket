@@ -19,7 +19,7 @@ const loadRawDataTableName = 'containercontent';
 export async function getAllStatistics() {
 	let sqlQueries = {
 		loadItemNames: 'SELECT itemname FROM containercontent;',
-		loadItemContent: 'select historicdata, orderdata from containercontent where itemname = $1',
+		loadItemContent: 'select historicdata, orderdata, currentprices from containercontent where itemname = $1',
 		createTable:
 			'create table if not exists containerStatistics ( itemname TEXT UNIQUE, historicData JSONb [], orderData JSONb [], priceElasticity JSONb, tradeVolumes JSONb, lifeTime JSONb )', //$1 = itemname
 	};

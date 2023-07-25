@@ -17,3 +17,15 @@ div {
 	border: 1px;
 	border-color: black;
 }
+
+table {
+	padding: 3px;
+	margin-right: 3px;
+	border-color: black;
+	border-style: 1px;
+}
+
+td {
+	padding: 2px;
+	padding-right: 30px;
+}

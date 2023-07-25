@@ -21,7 +21,7 @@ export async function getAllStatistics() {
 		loadItemNames: 'SELECT itemname FROM containercontent;',
 		loadItemContent: 'select historicdata, orderdata, currentprices from containercontent where itemname = $1',
 		createTable:
-			'create table if not exists containerStatistics ( itemname TEXT UNIQUE, historicData JSONb [], orderData JSONb [], priceElasticity JSONb, tradeVolumes JSONb, lifeTime JSONb )', //$1 = itemname
+			'create table if not exists containerStatistics ( itemname TEXT UNIQUE, historicData JSONb [], orderData JSONb [], priceElasticity JSONb, tradeVolumes JSONb, lifeTime JSONb , currentprices JSONb)', //$1 = itemname
 	};
 	let itemNames;
 

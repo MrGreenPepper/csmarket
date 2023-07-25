@@ -25,6 +25,7 @@ export class SteamContainer extends MarketObject {
 		this.plainData = containerData;
 		this.historicData = dbParser.parseJSONArray(containerData.historicdata);
 		this.orderData = dbParser.parseJSONArray(containerData.orderdata);
+		this.currentPrices = containerData.currentprices;
 		//statistics
 		this.priceElasticity = {};
 		this.calcPriceElasticity('order');
@@ -40,13 +41,14 @@ export class SteamContainer extends MarketObject {
 		this.calcTradeVolumes('order');
 		this.sqlQueries = {
 			saveItemData: {
-				syntax: `INSERT INTO containerStatistics (itemname, historicData , orderData , priceElasticity, tradeVolumes, lifeTime) VALUES ($1, $2, $3, $4, $5, $6)
+				syntax: `INSERT INTO containerStatistics (itemname, historicData , orderData , priceElasticity, tradeVolumes, lifeTime, currentprices) VALUES ($1, $2, $3, $4, $5, $6, $7)
 							ON CONFLICT (itemname) DO UPDATE SET
 							historicData = EXCLUDED.historicData , 
 							orderData = EXCLUDED.orderData , 
 							priceElasticity = EXCLUDED.priceElasticity, 
 							tradeVolumes = EXCLUDED.tradeVolumes, 
-							lifeTime = EXCLUDED.lifeTime`,
+							lifeTime = EXCLUDED.lifeTime,
+							currentprices = EXCLUDED.currentprices`,
 				variables: [
 					this.containerName,
 					this.historicData,
@@ -54,6 +56,7 @@ export class SteamContainer extends MarketObject {
 					this.priceElasticity,
 					this.tradeVolumes,
 					this.lifeTime,
+					this.currentPrices,
 				],
 			},
 		};

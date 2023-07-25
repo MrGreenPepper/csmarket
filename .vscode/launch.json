@@ -30,6 +30,13 @@
 			},
 			"args": ["."],
 			"outputCapture": "std"
+		},
+		{
+			"type": "chrome",
+			"request": "launch",
+			"name": "Launch chrome front against localhost",
+			"url": "http://localhost:3000",
+			"webRoot": "${workspaceFolder}/frontent/"
 		}
 	]
 }

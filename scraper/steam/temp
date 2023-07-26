@@ -1,12 +1,12 @@
-await scrappingPage.on('response', (response) => {
+await scrapingPage.on('response', (response) => {
 	console.log(response);
 
 	if (response.request().method === 'POST' && response.url === `${process.env.USERS_API_DOMAIN}/sessions`) {
 		expect(response.status).toEqual(400);
 	}
-	response = scrappingPage.on('response', (response) => response);
+	response = scrapingPage.on('response', (response) => response);
 });
-scrappingPage.on('request', (req) => {
+scrapingPage.on('request', (req) => {
 	if (req.resourceType() === 'xhr') {
 		req.abort();
 	} else {
@@ -14,7 +14,7 @@ scrappingPage.on('request', (req) => {
 	}
 });
 
-/*	await scrappingPage.goto(
+/*	await scrapingPage.goto(
 			'https://steamcommunity.com/market/itemordershistogram?country=DE&language=german&currency=1&item_nameid=29205213&two_factor=0'
 		);
 */
@@ -29,7 +29,7 @@ const nextRequest = () => {
 	}
 };
 
-scrappingPage.on('request', (request) => {
+scrapingPage.on('request', (request) => {
 	if (paused) {
 		console.log('buffered request: \t', request.url());
 		pausedRequests.push(() => request.continue());
@@ -39,7 +39,7 @@ scrappingPage.on('request', (request) => {
 	}
 });
 
-scrappingPage.on('requestfinished', async (request) => {
+scrapingPage.on('requestfinished', async (request) => {
 	const response = await request.response();
 
 	const responseHeaders = response.headers();
@@ -67,10 +67,10 @@ scrappingPage.on('requestfinished', async (request) => {
 	nextRequest(); // continue with next request
 });
 
-scrappingPage.on('response', async (response) => {
+scrapingPage.on('response', async (response) => {
 	nextRequest();
 });
-scrappingPage.on('requestfailed', (request) => {
+scrapingPage.on('requestfailed', (request) => {
 	// handle failed request
 	nextRequest();
 });
@@ -99,7 +99,7 @@ for (let containerMeta of containerUrls) {
 	let results = [];
 	let timers = [];
 
-	await scrappingPage.setRequestInterception(true);
+	await scrapingPage.setRequestInterception(true);
 	const nextRequest = () => {
 		// continue the next request or "unpause"
 		if (pausedRequests.length === 0) {
@@ -111,7 +111,7 @@ for (let containerMeta of containerUrls) {
 		}
 	};
 
-	scrappingPage.on('request', (request) => {
+	scrapingPage.on('request', (request) => {
 		console.log('to buffered request: \t', request.url());
 		if (imageTesterRegEx.test(request.url())) {
 			console.warn('abort request: \t', request.url());
@@ -132,14 +132,14 @@ for (let containerMeta of containerUrls) {
 		}
 	});
 
-	scrappingPage.on('response', (response) => {
+	scrapingPage.on('response', (response) => {
 		console.log('response url: \t', response.url());
 		console.log('request stack: \t', pausedRequests);
 		clearTimeout(timers.shift());
 		nextRequest(); // continue with next request
 	});
 
-	await scrappingPage.goto(containerMeta.itemurl, {
+	await scrapingPage.goto(containerMeta.itemurl, {
 		timeout: 0,
 	});
 }
@@ -170,7 +170,7 @@ async function _scrapeContainers() {
 	let loadSQLSyntax = 'SELECT * FROM containerurls;';
 	let createRawTableSyntax = `CREATE TABLE IF NOT EXISTS containerRawContent (itemName TEXT UNIQUE, pageContent TEXT);`;
 	let scrapeBrowser = await scBrowser.start();
-	let scrappingPage = await scrapeBrowser.newPage();
+	let scrapingPage = await scrapeBrowser.newPage();
 	let saveSQLSyntax = `INSERT INTO containerRawContent (itemName, pageContent) VALUES ($1, $2) 
 						ON CONFLICT (itemName) DO UPDATE SET pageContent=EXCLUDED.pageContent;`;
 
@@ -199,7 +199,7 @@ async function _scrapeContainers() {
 
 		let results = [];
 
-		await scrappingPage.setRequestInterception(true);
+		await scrapingPage.setRequestInterception(true);
 		const nextRequest = () => {
 			// continue the next request or "unpause"
 			if (pausedRequests.length === 0) {
@@ -211,7 +211,7 @@ async function _scrapeContainers() {
 			}
 		};
 
-		scrappingPage.on('request', (request) => {
+		scrapingPage.on('request', (request) => {
 			let currentUrl = request.url();
 			console.log('to buffer request: \t', currentUrl);
 
@@ -236,13 +236,13 @@ async function _scrapeContainers() {
 			}
 		});
 
-		scrappingPage.on('response', (response) => {
+		scrapingPage.on('response', (response) => {
 			console.log('response url: \t', response.url());
 			console.log('request stack: \t', pausedRequests);
 			nextRequest(); // continue with next request
 		});
 
-		await scrappingPage.goto(containerMeta.itemurl, {
+		await scrapingPage.goto(containerMeta.itemurl, {
 			timeout: 0,
 		});
 	}

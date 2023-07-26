@@ -1,8 +1,8 @@
-import * as steamScrapper from './steam/steamScrapper.js';
+import * as steamscraper from './steam/scrapingProtocol.js';
 
 (async function start() {
-	//scrapping basic item data from steam
-	await steamScrapper.scrappingProtocol({
+	//scraping basic item data from steam
+	await steamscraper.scrapingProtocol({
 		renewData: false,
 		scrapeUrls: false,
 		scrapeContainer: false,

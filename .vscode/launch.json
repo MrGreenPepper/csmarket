@@ -7,11 +7,10 @@
 		{
 			"type": "node",
 			"request": "launch",
-			"name": "launch scrapper",
+			"name": "launch scraper",
 			"skipFiles": ["<node_internals>/**"],
-			"program": "${workspaceFolder}/scrapper/mainScrapper.js"
+			"program": "${workspaceFolder}/scraper/mainScraper.js"
 		},
-
 		{
 			"type": "node",
 			"request": "launch",
@@ -20,7 +19,7 @@
 			"program": "${workspaceFolder}/test.js"
 		},
 		{
-			"name": "Debug Main Process",
+			"name": "debug electron",
 			"type": "node",
 			"request": "launch",
 			"cwd": "${workspaceFolder}",

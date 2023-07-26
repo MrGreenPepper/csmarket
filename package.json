@@ -6,7 +6,7 @@
 	"type": "module",
 	"scripts": {
 		"ele": "npm --prefix ./electron/ run start",
-		"scrap": "npm ./scrapper/mainScrapper.js",
+		"scrap": "node ./scraper/mainScraper.js",
 		"front": "npm --prefix ./frontend/ run start",
 		"server": "npm --prefix ./server/ run start"
 	},

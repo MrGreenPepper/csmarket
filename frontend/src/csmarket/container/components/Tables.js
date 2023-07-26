@@ -4,9 +4,7 @@ export default function Tables({ data }) {
 			<table>
 				<thead>
 					<tr>
-						<td>
-							<b>baseStats</b>
-						</td>
+						<td>baseStats</td>
 					</tr>
 				</thead>
 				<tbody>
@@ -29,7 +27,7 @@ export default function Tables({ data }) {
 			<table>
 				<thead>
 					<tr>
-						<b>tradeVolumne</b>
+						<td>tradeVolumne</td>
 					</tr>
 				</thead>
 				<tbody>

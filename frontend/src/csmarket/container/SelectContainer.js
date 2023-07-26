@@ -6,16 +6,18 @@ import ContainerStatistics from './ContainerStatistics.js';
 const listUrl = '/api/csmarket/container/list';
 
 export default function SelectContainer() {
+	console.log('render SelectContainer');
 	const [selectOptions, setSelectOptions] = useState();
 	const [containerData, setContainerData] = useState();
 	useEffect(() => {
+		console.log('get data');
 		const getData = async () => {
 			await axios.get(listUrl).then((res) => {
-				console.log(res);
 				setSelectOptions(res.data);
 			});
 		};
 		getData();
+		console.log('got data');
 	}, []);
 
 	async function loadData(selectedOption) {

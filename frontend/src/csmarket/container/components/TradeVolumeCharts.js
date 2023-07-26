@@ -1,4 +1,5 @@
-export default function TradeVolumeChart({ xScale, yScale, lineValues }) {
+export default function tradeVolumeChart(xScale, yScale, lineValues) {
+	console.log('calc chart');
 	let d3 = window.d3;
 	const margin = { top: 10, right: 30, bottom: 30, left: 60 },
 		width = 460 - margin.left - margin.right,
@@ -42,5 +43,5 @@ export default function TradeVolumeChart({ xScale, yScale, lineValues }) {
 		.attr('transform', `translate(${margin.left} ${margin.top})`)
 		.attr('d', line(lineValues));
 
-	return <div id="scatterPlot_tradeVolumnes"></div>;
+	return;
 }

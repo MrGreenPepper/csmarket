@@ -34,6 +34,17 @@ export class SteamContainer extends MarketObject {
 		//calc trade volumns
 		/**welche statistiken mächte ich haben?:
 		 * wo war das tradevolumen am grö§ten? __> sorted array
+		 *		calc the statistics
+    	wanted statistcs
+	
+		
+		//lifetime container
+		//elastizität menge price
+		//marktvolumen
+		//handelsvolumen
+		//relation markt zu handelsvolumen
+		//medianPrice
+		//varianz
 		 */
 		this.statistics = {};
 		this.statistics.historic = {};

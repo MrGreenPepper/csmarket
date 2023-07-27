@@ -43,21 +43,10 @@ export async function getAllStatistics() {
 		console.log(error);
 	}
 
+	//create class container for everydata ... calcs happen in the class
 	for (let currentName of itemNames) {
 		let currentContainer = await SteamContainer._init(currentName);
 		await currentContainer.saveDBData();
-
-		//calc the statistics
-		/**wanted statistcs
-		 *
-		 */
-		//lifetime container
-		//elastizität menge price
-		//marktvolumen
-		//handelsvolumen
-		//relation markt zu handelsvolumen
-		//medianPrice
-		//varianz
 	}
 }
 

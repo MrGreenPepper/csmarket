@@ -37,6 +37,7 @@ export class SteamContainer extends MarketObject {
 		 */
 		this.statistics = {};
 		this.statistics.historic = {};
+		this.statistics.historic.data = this.historicData;
 		this.statistics.historic.tradeVolumes = this.calcTradeVolumes(this.historicData);
 		Object.assign(this.statistics.historic, this.calcBasicStatistics(this.historicData));
 

@@ -32,21 +32,35 @@ export class SteamContainer extends MarketObject {
 		this.calcPriceElasticity('historic');
 		this.lifeTime = this.lifetimeContainer();
 		//calc trade volumns
-		this.tradeVolumes = {};
-		this.tradeVolumes.historicArray;
-		this.tradeVolumes.historicSum;
-		this.tradeVolumes.orderArray;
-		this.tradeVolumes.orderSum;
-		this.calcTradeVolumes('historic');
-		this.calcTradeVolumes('order');
+		/**welche statistiken mächte ich haben?:
+		 * wo war das tradevolumen am grö§ten? __> sorted array
+		 */
+		this.statistics = {};
+		this.statistics.historic = {};
+		this.statistics.historic.tradeVolumes = this.calcTradeVolumes(this.historicData);
+		Object.assign(this.statistics.historic, this.calcBasicStatistics(this.historicData));
+
+		this.statistics.order = {};
+		this.statistics.order.buy = {};
+		this.statistics.order.sale = {};
+		this.sortBuyVolume();
+		this.sortSaleVolume();
+		this.statistics.order.buy.tradeVolumes = {};
+		this.statistics.order.sale.tradeVolumes = {};
+
+		this.statistics.order.buy.tradeVolumes = this.calcTradeVolumes(this.statistics.order.buy.data);
+		Object.assign(this.statistics.order.buy, this.calcBasicStatistics(this.statistics.order.buy.data));
+		this.statistics.order.sale.tradeVolumes = this.calcTradeVolumes(this.statistics.order.sale.data);
+		Object.assign(this.statistics.order.sale, this.calcBasicStatistics(this.statistics.order.sale.data));
+
 		this.sqlQueries = {
 			saveItemData: {
-				syntax: `INSERT INTO containerStatistics (itemname, historicData , orderData , priceElasticity, tradeVolumes, lifeTime, currentprices) VALUES ($1, $2, $3, $4, $5, $6, $7)
+				syntax: `INSERT INTO containerStatistics (itemname, historicData , orderData , priceElasticity, statistics, lifeTime, currentprices) VALUES ($1, $2, $3, $4, $5, $6, $7)
 							ON CONFLICT (itemname) DO UPDATE SET
 							historicData = EXCLUDED.historicData , 
 							orderData = EXCLUDED.orderData , 
 							priceElasticity = EXCLUDED.priceElasticity, 
-							tradeVolumes = EXCLUDED.tradeVolumes, 
+							statistics = EXCLUDED.statistics, 
 							lifeTime = EXCLUDED.lifeTime,
 							currentprices = EXCLUDED.currentprices`,
 				variables: [
@@ -54,7 +68,7 @@ export class SteamContainer extends MarketObject {
 					this.historicData,
 					this.orderData,
 					this.priceElasticity,
-					this.tradeVolumes,
+					this.statistics,
 					this.lifeTime,
 					this.currentPrices,
 				],
@@ -65,7 +79,16 @@ export class SteamContainer extends MarketObject {
 	saveDBData = async function () {
 		await dbHandler.sqlQuery(this.sqlQueries.saveItemData.syntax, this.sqlQueries.saveItemData.variables);
 	};
-
+	sortBuyVolume() {
+		this.statistics.order.buy.data = this.orderData.filter((entry) => {
+			if (entry.orderType == 'buy') return true;
+		});
+	}
+	sortSaleVolume() {
+		this.statistics.order.sale.data = this.orderData.filter((entry) => {
+			if (entry.orderType == 'sell') return true;
+		});
+	}
 	calcPriceElasticity(dataSetName) {
 		let dataArray = this[dataSetName + 'Data'];
 		let priceElasticity = [];
@@ -93,24 +116,61 @@ export class SteamContainer extends MarketObject {
 		return lifeTime;
 	}
 
-	calcTradeVolumes(volumneName) {
-		let tradeVolumnes = [];
-		let currentTradeVolumne;
-		let currentData;
-		let dataArray;
-		let dataName = volumneName + 'Data';
-		let arrayName = volumneName + 'Array';
-		let sumName = volumneName + 'Sum';
-		//calc historic first
-		dataArray = this[dataName];
+	calcBasicStatistics(dataArray) {
+		let statistics = {};
+		let countSum = dataArray.reduce((pre, cur) => (pre += cur.count), 0);
+		let medianData = {};
+		//calc median and quartiles
+		let medianCounter = 0;
+		let foundMedian = false;
 		for (let i = 0; i < dataArray.length; i++) {
-			currentData = dataArray[i];
-			currentTradeVolumne = dataArray[i].count * dataArray[i].price;
-			currentTradeVolumne = parseFloat(currentTradeVolumne.toFixed(3));
-			tradeVolumnes.push(currentTradeVolumne);
+			medianCounter += dataArray[i].count;
+			if (medianCounter >= countSum / 2 && foundMedian == false) {
+				foundMedian = true;
+				medianData.entry = dataArray[i];
+				medianData.i = i;
+			}
 		}
+		statistics.countSum = countSum;
+		statistics.medianData = medianData;
 
-		this.tradeVolumes[arrayName] = tradeVolumnes;
-		this.tradeVolumes[sumName] = parseFloat(tradeVolumnes.reduce((pre, cur) => (pre += cur), 0).toFixed(3));
+		return statistics;
+	}
+
+	calcTradeVolumes(currentData) {
+		let tradeVolumeSum = 0;
+		let dataArray;
+		let sortByDate;
+		let sortByPrice;
+		let sortByVolume;
+		let sortByCount;
+		let countSum = 0;
+		let medianData = {};
+
+		//calc volume, sumVolume & sumCount
+		dataArray = currentData;
+		for (let i = 0; i < dataArray.length; i++) {
+			dataArray[i].volume = dataArray[i].count * dataArray[i].price;
+			dataArray[i].volume = parseFloat(dataArray[i].volume.toFixed(3));
+			//add count
+			countSum += dataArray[i].count;
+			tradeVolumeSum += dataArray[i].count * dataArray[i].price;
+		}
+		tradeVolumeSum = parseFloat(tradeVolumeSum.toFixed(3));
+
+		//sort differnt types of arrays
+		sortByDate = dataArray;
+		sortByPrice = dataArray.sort((a, b) => a.price - b.price);
+		sortByVolume = dataArray.sort((a, b) => a.volume - b.volume);
+		sortByCount = dataArray.sort((a, b) => a.count - b.count);
+
+		return {
+			tradeVolumeSum: tradeVolumeSum,
+			countSum: countSum,
+			sortByDate: dataArray,
+			sortByPrice: sortByPrice,
+			sortByVolume: sortByVolume,
+			sortByCount: sortByCount,
+		};
 	}
 }

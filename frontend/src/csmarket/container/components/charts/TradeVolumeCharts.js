@@ -6,10 +6,10 @@ export default function tradeVolumeChart(xScale, yScale, lineValues) {
 		height = 400 - margin.top - margin.bottom;
 
 	//remove old ones
-	d3.select('div#scatterPlot_tradeVolumnes svg').remove();
+	d3.select('div#scatterPlot_tradeVolumes svg').remove();
 	// Create the SVG container.
 	const svg = d3
-		.select('div#scatterPlot_tradeVolumnes')
+		.select('div#scatterPlot_tradeVolumes')
 		.append('svg')
 		.attr('width', width + margin.left + margin.right)
 		.attr('height', height + margin.top + margin.bottom)

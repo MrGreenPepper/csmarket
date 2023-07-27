@@ -1,9 +1,10 @@
-import Tables from './components/Tables';
-export default function BaseStatistics({ data }) {
+import BaseTable from './components/tables/BaseStatsTable.js';
 
+export default function BaseStatistics({ data }) {
 	return (
 		<div id="baseStatistics">
-			<Tables data={data} />
+			<h3>baseStats</h3>
+			<BaseTable data={data} />
 		</div>
 	);
 }

@@ -21,7 +21,7 @@ export async function getAllStatistics() {
 		loadItemNames: 'SELECT itemname FROM containercontent;',
 		loadItemContent: 'select historicdata, orderdata, currentprices from containercontent where itemname = $1',
 		createTable:
-			'create table if not exists containerStatistics ( itemname TEXT UNIQUE, historicData JSONb [], orderData JSONb [], priceElasticity JSONb, tradeVolumes JSONb, lifeTime JSONb , currentprices JSONb)', //$1 = itemname
+			'create table if not exists containerStatistics ( itemname TEXT UNIQUE, historicData JSONb [], orderData JSONb [], priceElasticity JSONb, statistics JSONb, lifeTime JSONb , currentprices JSONb)', //$1 = itemname
 	};
 	let itemNames;
 
@@ -109,19 +109,19 @@ function elasticityPrice(dataArray) {
 	return dataArray;
 }
 
-function tradeVolumne(dataArray) {
-	let currentTradeVolumne;
+function tradeVolume(dataArray) {
+	let currentTradeVolume;
 	let currentData;
 
 	for (let i = 0; i < dataArray.length; i++) {
 		currentData = dataArray[i];
-		currentTradeVolumne = dataArray[i].count * dataArray[i].price;
-		dataArray[i].tradeVolumne = currentTradeVolumne;
+		currentTradeVolume = dataArray[i].count * dataArray[i].price;
+		dataArray[i].tradeVolume = currentTradeVolume;
 	}
 	return dataArray;
 }
 function calculateMetaStatistics(dateArray, priceArray, countArray) {
-	let tradeVolumne = [];
+	let tradeVolume = [];
 }
 
 /**Parses the raw historic data from db into obj and splits them into separated arrays.

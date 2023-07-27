@@ -1,10 +1,10 @@
-export default function Tables({ data }) {
+export default function BaseStats({ data }) {
 	return (
 		<div id="baseStats_table">
 			<table>
 				<thead>
 					<tr>
-						<td>baseStats</td>
+						<td></td>
 					</tr>
 				</thead>
 				<tbody>
@@ -21,23 +21,6 @@ export default function Tables({ data }) {
 					<tr>
 						<td>dropable</td>
 						<td></td>
-					</tr>
-				</tbody>
-			</table>
-			<table>
-				<thead>
-					<tr>
-						<td>tradeVolumne</td>
-					</tr>
-				</thead>
-				<tbody>
-					<tr>
-						<td>orderSum</td>
-						<td>{data.tradevolumes.orderSum}</td>
-					</tr>
-					<tr>
-						<td>historicSum</td>
-						<td>{data.tradevolumes.historicSum}</td>
 					</tr>
 				</tbody>
 			</table>

@@ -1,6 +1,9 @@
 import * as dbHandler from '../../tools/database/dbHandler.mjs';
 import { MarketObject } from '../MarketObject.js';
 import * as dbParser from '../../tools/database/parseDB.js';
+import SegFaultHandler from 'segfault-handler';
+
+SegFaultHandler.registerHandler('crash.log');
 
 export async function _init(containerName) {
 	let sqlQueries = {
@@ -88,9 +91,6 @@ export class SteamContainer extends MarketObject {
 		};
 	}
 
-	saveDBData = async function () {
-		await dbHandler.sqlQuery(this.sqlQueries.saveItemData.syntax, this.sqlQueries.saveItemData.variables);
-	};
 	sortBuyVolume() {
 		this.statistics.order.buy.data = this.orderData.filter((entry) => {
 			if (entry.orderType == 'buy') return true;

@@ -6,7 +6,6 @@ import ContainerStatistics from './ContainerStatistics.js';
 const listUrl = '/api/csmarket/container/list';
 
 export default function SelectContainer() {
-	console.log('render SelectContainer');
 	const [selectOptions, setSelectOptions] = useState();
 	const [containerData, setContainerData] = useState();
 	useEffect(() => {
@@ -20,7 +19,7 @@ export default function SelectContainer() {
 		console.log('got data');
 	}, []);
 
-	async function loadData(selectedOption) {
+	async function loadContainerData(selectedOption) {
 		let itemName = selectedOption.value;
 		let apiURL = '/api/csmarket/container/statistics';
 		await axios.get(apiURL, { params: { itemName: itemName } }).then((res) => {
@@ -32,7 +31,7 @@ export default function SelectContainer() {
 	return (
 		<div>
 			<h6>SelectContainer</h6>
-			<Select options={selectOptions} onChange={(value) => loadData(value)}></Select>
+			<Select options={selectOptions} onChange={(value) => loadContainerData(value)}></Select>
 			{containerData ? <ContainerStatistics data={containerData} /> : 'select one'}
 		</div>
 	);

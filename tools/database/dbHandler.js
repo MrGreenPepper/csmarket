@@ -1,4 +1,4 @@
-import pg from 'pg';
+import * as pg from 'pg-native';
 import ini from 'ini';
 import fs from 'fs';
 import { error } from 'console';

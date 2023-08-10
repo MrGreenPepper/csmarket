@@ -1,15 +1,34 @@
-export default function tradeVolumeChart(xScale, yScale, lineValues) {
+import React from 'react';
+import { useD3 } from '../../../../hooks/useD3';
+import * as d3 from 'd3';
+
+export default function TradeVolumeChartFn({ data }) {
+	let lineValues = data.lineValues;
+
+	const ref = useD3(tradeVolumeChartFn, data, [lineValues]);
+
+	return (
+		<svg
+			ref={ref}
+			style={{
+				height: 500,
+				width: '500',
+				marginRight: '0px',
+				marginLeft: '0px',
+			}}
+		></svg>
+	);
+}
+
+function tradeVolumeChartFn(svgContainer, xScale, yScale, lineValues) {
 	console.log('calc chart');
-	let d3 = window.d3;
+
 	const margin = { top: 10, right: 30, bottom: 30, left: 60 },
 		width = 460 - margin.left - margin.right,
 		height = 400 - margin.top - margin.bottom;
 
-	//remove old ones
-	d3.select('div#scatterPlot_tradeVolumes svg').remove();
-	// Create the SVG container.
 	const svg = d3
-		.select('div#scatterPlot_tradeVolumes')
+		.select(svgContainer[0])
 		.append('svg')
 		.attr('width', width + margin.left + margin.right)
 		.attr('height', height + margin.top + margin.bottom)
@@ -43,5 +62,5 @@ export default function tradeVolumeChart(xScale, yScale, lineValues) {
 		.attr('transform', `translate(${margin.left} ${margin.top})`)
 		.attr('d', line(lineValues));
 
-	return;
+	return svgContainer;
 }

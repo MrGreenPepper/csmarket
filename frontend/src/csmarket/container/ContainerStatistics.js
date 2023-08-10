@@ -1,5 +1,4 @@
 import { useEffect } from 'react';
-import tradeVolumeChart from './components/charts/TradeVolumeCharts';
 import BaseStats from './BaseStatistcs.js';
 import HistoricStats from './HistoricStats.js';
 import OrderStats from './OrderStats.js';
@@ -11,8 +10,6 @@ export default function ContainerStatistcs({ data }) {
 	yScale = yScale.sort((a, b) => a - b);
 
 	let lineValues = data.orderdata.sort((a, b) => a.price - b.price);
-
-	useEffect(() => tradeVolumeChart(xScale, yScale, lineValues, []));
 
 	console.log(data);
 	return (

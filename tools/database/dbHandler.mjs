@@ -1,20 +1,21 @@
-import pg from 'pg';
+import pkg from 'pg';
 import ini from 'ini';
 import fs from 'fs';
-import { error } from 'console';
 
 async function getConnection() {
+	const {native} = pkg;
+	const {Client }= native;
 	try {
 		let dbaccess = ini.parse(fs.readFileSync('./tools/database/db.ini', 'utf-8'));
-		let client = new pg.Client(dbaccess['postgresql_loginData']);
-		return client;
+		let conClient = new Client(dbaccess['postgresql_loginData']);
+		return conClient;
 	} catch (error) {
 		console.error(error);
 		console.error(error.message);
 	}
 }
 
-export async function sqlQuery(syntax, values) {
+export async function sqlQuery(syntax, values) {	
 	try {
 		let client = await getConnection();
 		await client.connect();

@@ -46,8 +46,14 @@ export async function getAllStatistics() {
 	//create class container for everydata ... calcs happen in the class
 	for (let currentName of itemNames) {
 		let currentContainer = await SteamContainer._init(currentName);
-		await currentContainer.saveDBData();
+		await saveDBData.bind(currentContainer)();
+		//await currentContainer.saveDBData();
 	}
+}
+
+async function saveDBData() {
+	await dbHandler.sqlQuery(this.sqlQueries.saveItemData.syntax, this.sqlQueries.saveItemData.variables);
+	return;
 }
 
 /**calculates different medians for the given category*/

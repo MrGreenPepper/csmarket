@@ -2,6 +2,10 @@ import * as scBrowser from '../tools/scrapingBrowser.js';
 import * as dbHandler from '../../tools/database/dbHandler.mjs';
 import * as extractor_container from './extractContainer.js';
 import * as statistcs from './getStatistics.js';
+import ini from 'ini';
+import fs from 'fs';
+
+let dbAccess = ini.parse(fs.readFileSync('./tools/database/db.ini', 'utf-8'));
 
 /**
  *
@@ -88,6 +92,7 @@ export async function _getContainerUrls() {
 	}
 
 	//await dbHandler.dropAllTables();
+	//TODO: createURLTable and save method
 	await createLinkTable(itemUrls);
 }
 
@@ -104,20 +109,18 @@ function waitForOrderUrl(variable) {
 
 /**loads the containerUrls from the DB, scrapes the pageContent and filters requests for order data& saves it  */
 async function _scrapeContainers() {
-	let loadSQLSyntax = 'SELECT * FROM containerurls;';
-	let createRawTableSyntax = `CREATE TABLE IF NOT EXISTS containerRawContent (itemName TEXT UNIQUE, itemID INTEGER UNIQUE, pageContent TEXT, orderData TEXT, currentBuy TEXT, currentSale TEXT);`;
+	let sqlSyntax_loadUrls = dbAccess['table_containerUrls'].loadAll;
+	let sqlSyntax_createTable = dbAccess['table_scrapeContainer'].createTable;
+	let sqlSyntax_saveContainer = dbAccess['table_scrapeContainer'].saveAll;
 	let scrapeBrowser = await scBrowser.start();
 	let scrapingPage = await scrapeBrowser.newPage();
-	let saveSQLSyntax = `INSERT INTO containerRawContent (itemName, itemID, pagecontent, orderData, currentBuy, currentSale) VALUES ($1, $2, $3, $4, $5, $6) 
-						ON CONFLICT (itemName) DO UPDATE SET pageContent=EXCLUDED.pageContent, orderData = EXCLUDED.orderData, currentBuy = EXCLUDED.currentBuy, currentSale = EXCLUDED.currentSale;`;
-
 	//get container URLS
-	let containerUrls = await dbHandler.sqlQuery(loadSQLSyntax);
+	let containerUrls = await dbHandler.sqlQuery(sqlSyntax_loadUrls);
 	containerUrls = containerUrls.rows;
 
 	//create db for laterSave
 	try {
-		await dbHandler.sqlQuery(createRawTableSyntax);
+		await dbHandler.sqlQuery(sqlSyntax_createTable);
 	} catch (error) {
 		//is already catched in the sqlQuery functionq
 	}
@@ -133,10 +136,13 @@ async function _scrapeContainers() {
 			let itemID = '';
 			let foundOrderUrl = false;
 			let orderURL;
+
 			let orderData;
 			let rawData;
 			let currentSale = 'no orders';
 			let currentBuy = 'no orders';
+			let containerDescription = [];
+
 			//get the orderData api url
 			await scrapingPage.setRequestInterception(true);
 
@@ -168,15 +174,19 @@ async function _scrapeContainers() {
 			rawData = await scrapingPage.content();
 			[currentBuy, currentSale] = await scrapePrices(scrapingPage);
 
+			//get the containerItems
+			containerDescription = await getDescription(scrapingPage);
+
 			//go to the scraped order url
 			await scrapingPage.goto(orderURL);
 			await scrapingPage.waitForNetworkIdle();
 			itemID = parseInt(orderURL.match(itemIDregEx));
 			orderData = await scrapingPage.content();
 			await scrapingPage.close();
-			await dbHandler.sqlQuery(saveSQLSyntax, [
+			await dbHandler.sqlQuery(sqlSyntax_saveContainer, [
 				containerMeta.itemname,
 				itemID,
+				containerDescription,
 				rawData,
 				orderData,
 				currentBuy,
@@ -189,6 +199,32 @@ async function _scrapeContainers() {
 	}
 
 	return;
+}
+
+/**
+ * Scraps the item description. The desciption contains some release data and the contained items
+ *
+ * @param {*} scrapingPage
+ * @returns
+ */
+async function getDescription(scrapingPage) {
+	let containedItems;
+
+	containedItems = await scrapingPage.$$eval('div.item_desc_descriptors div.descriptor[style]', (res) => {
+		console.log(res);
+		console.log(res[0].attributes);
+		let descriptorList = [...res];
+		descriptorList = descriptorList.map((entry) => {
+			let outerHTML = entry.outerHTML;
+			let innerText = entry.innerText;
+			let style = entry.attributes.style.value;
+			return { outerHTML: outerHTML, innerText: innerText, style: style };
+		});
+
+		return descriptorList;
+	});
+
+	return containedItems;
 }
 async function scrapePrices(scrapingPage) {
 	let currentSale = 'no orders';

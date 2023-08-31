@@ -5,8 +5,8 @@ import * as steamscraper from './steam/scrapingProtocol.js';
 	await steamscraper.scrapingProtocol({
 		renewData: false,
 		scrapeUrls: false,
-		scrapeContainer: false,
-		extractContainerContent: false,
+		scrapeContainer: true,
+		extractContainerContent: true,
 		calculateStatistics: true,
 	});
 })();

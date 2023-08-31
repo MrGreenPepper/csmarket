@@ -1,4 +1,8 @@
 import * as dbHandler from '../../tools/database/dbHandler.mjs';
+import ini from 'ini';
+import fs from 'fs';
+
+let dbAccess = ini.parse(fs.readFileSync('./tools/database/db.ini', 'utf-8'));
 
 /** Cuts the order data out of the raw page content. first slice the raw text then parses it into json
  * finishes by filtering the data
@@ -42,26 +46,21 @@ function orderRawDataToOrderData(rawOrderData) {
  */
 export async function extractContainerContent() {
 	let itemNames = await dbHandler.sqlQuery('SELECT itemname FROM containerurls');
-	let sqlSyntaxes = {
-		loadContent:
-			'SELECT pagecontent, orderdata, currentbuy, currentsale FROM containerrawcontent WHERE itemname = $1;',
-		createTable:
-			'CREATE TABLE IF NOT EXISTS containerContent (itemname TEXT UNIQUE, historicData TEXT[], orderData TEXT[], currentPrices JSONb);',
-		saveData: `INSERT INTO containerContent (itemname, historicData, orderData, currentPrices) VALUES ($1, $2, $3, $4) 
-					ON CONFLICT (itemName) DO UPDATE SET historicData=EXCLUDED.historicData, orderData=excluded.orderData, currentPrices = EXCLUDED.currentPrices;`,
-	};
+	let sqlSyntax_createTable = dbAccess['table_extractContainer'].createTable;
+	let sqlSyntax_loadData = dbAccess['table_scrapeContainer'].loadAll;
 
 	//1. create the db table if not exists
-	let dbResponse = await dbHandler.sqlQuery(sqlSyntaxes.createTable);
+	let dbResponse = await dbHandler.sqlQuery(sqlSyntax_createTable);
 	console.log('dbResponse - createTable:\t', dbResponse);
 
 	//2.load raw data. extract the historic data and save them into the new table
 	for (let entry of itemNames.rows) {
 		try {
 			let currentPrices = {};
-			//load raw data
+			let containedItems = [];
+			//load raw dat
 			let currentItemName = entry.itemname;
-			let currentItemRawData = await dbHandler.sqlQuery(sqlSyntaxes.loadContent, [currentItemName]);
+			let currentItemRawData = await dbHandler.sqlQuery(sqlSyntax_loadData, [currentItemName]);
 
 			let pageContentRaw = currentItemRawData.rows[0].pagecontent;
 			let orderDataRaw = currentItemRawData.rows[0].orderdata;
@@ -75,7 +74,7 @@ export async function extractContainerContent() {
 			let orderData = orderRawDataToOrderData(orderDataRaw);
 			console.log('');
 			//4. save into the new table
-			dbResponse = await dbHandler.sqlQuery(sqlSyntaxes.saveData, [
+			dbResponse = await dbHandler.sqlQuery(sqlSyntaxes.saveAll, [
 				currentItemName,
 				historicData,
 				orderData,

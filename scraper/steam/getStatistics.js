@@ -18,12 +18,6 @@ const loadRawDataTableName = 'containercontent';
  * 3. the container object calculates the statistics on hisself
  * 2. creates/updates tables for the single containers containing the concerning statistic data*/
 export async function getAllStatistics() {
-	let sqlQueries = {
-		loadItemNames: 'SELECT itemname FROM containercontent;',
-		loadItemContent: 'select historicdata, orderdata, currentprices from containercontent where itemname = $1',
-		createTable:
-			'create table if not exists containerStatistics ( itemname TEXT UNIQUE, historicData JSONb [], orderData JSONb [], priceElasticity JSONb, statistics JSONb, lifeTime JSONb , currentprices JSONb)', //$1 = itemname
-	};
 	let itemNames;
 
 	//getting the itemNames

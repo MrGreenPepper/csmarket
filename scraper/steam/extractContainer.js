@@ -1,6 +1,7 @@
 import * as dbHandler from '../../tools/database/dbHandler.mjs';
 import ini from 'ini';
 import fs from 'fs';
+import { raw } from 'express';
 
 let dbAccess = ini.parse(fs.readFileSync('./tools/database/db.ini', 'utf-8'));
 
@@ -62,20 +63,23 @@ export async function extractContainerContent() {
 			let currentItemName = entry.itemname;
 			let currentItemRawData = await dbHandler.sqlQuery(sqlSyntax_loadData, [currentItemName]);
 
+			let descriptionDataRaw = currentItemRawData.rows[0].itemdescription;
 			let pageContentRaw = currentItemRawData.rows[0].pagecontent;
 			let orderDataRaw = currentItemRawData.rows[0].orderdata;
 			let currentbuy = currentItemRawData.rows[0].currentbuy;
 			let currentsale = currentItemRawData.rows[0].currentsale;
 
 			//3. extract the data
+			let descriptionData = getDescriptionData(descriptionDataRaw);
 			currentPrices.buy = getCurrentPrices(currentbuy);
 			currentPrices.sale = getCurrentPrices(currentsale);
 			let historicData = pageContentToHistoricData(pageContentRaw);
 			let orderData = orderRawDataToOrderData(orderDataRaw);
 			console.log('');
 			//4. save into the new table
-			dbResponse = await dbHandler.sqlQuery(sqlSyntaxes.saveAll, [
+			dbResponse = await dbHandler.sqlQuery(dbAccess.table_extractContainer.saveAll, [
 				currentItemName,
+				descriptionData,
 				historicData,
 				orderData,
 				currentPrices,
@@ -85,6 +89,95 @@ export async function extractContainerContent() {
 			console.error('cant extract data from item:\t', entry, '\n');
 			console.error(error.message);
 			console.error(error.stack);
+		}
+	}
+}
+
+//categories the description data by syntax and surrounding html code
+function getDescriptionData(descriptionDataRaw) {
+	let descriptionData = {};
+	descriptionData.itemInfo = [];
+	descriptionData.items = [];
+	let description = true;
+	let descriptionColors = {
+		containerSeries: '153, 204, 255',
+		itemInfo: '255, 215, 0',
+	};
+	let rarityColors = {
+		consumerGrade: '210, 210, 210',
+		industrialGrade: '176, 195, 217',
+		milSpec: '75, 105, 255',
+		restricted: '136, 71, 255',
+		classified: '211, 44, 230',
+		covert: '235, 75, 75',
+		extraordinary: '255, 215, 0',
+	};
+	let rarities = Object.keys(rarityColors);
+
+	descriptionDataRaw.forEach((rawEntry) => {
+		let styleData = rawEntry.style;
+		let outerHTML = rawEntry.outerHTML;
+		let innerText = rawEntry.innerText;
+		let dataType;
+		let category;
+		//categorize by style
+		if (description) {
+			//if it gets to the default value, description is over and the contained items starts
+			switch (true) {
+				case styleData.includes(descriptionColors.containerSeries):
+					descriptionData.containerSeries = innerText;
+					break;
+				case styleData.includes(descriptionColors.itemInfo):
+					descriptionData.itemInfo.push(innerText);
+					break;
+				default:
+					description = false;
+			}
+		} else {
+			for (let i = 0; i < rarities.length; ) {
+				//test current color
+				if (styleData.includes(rarityColors[rarities[i]])) {
+					//test for weapon
+					if (innerText.includes('|')) {
+						let [weaponName, skinName] = innerText.split('|').map((entry) => entry.trim());
+						descriptionData.items.push({
+							itemRarity: rarities[i],
+							weaponName: weaponName,
+							skinName: skinName,
+						});
+					} else {
+						descriptionData.items.push({ itemID: innerText, itemRarity: rarities[i] });
+					}
+
+					break;
+				} else {
+					i++;
+				}
+			}
+		}
+	});
+	return descriptionData;
+}
+
+function* getDescriptionCategory(colorValue) {
+	let descriptionCategory = {
+		itemInfo: '255, 215, 0',
+		containerSeries: '153, 204, 255',
+		consumerGrade: '210, 210, 210',
+		industrialGrade: '176, 195, 217',
+		milSpec: '75, 105, 255',
+		restricted: '136, 71, 255',
+		classified: '211, 44, 230',
+		covert: '235, 75, 75',
+		extraordinary: '255, 215, 0',
+	};
+
+	let descriptionKeys = Object.keys(descriptionCategory);
+
+	for (let i = 0; i < descriptionKeys.length; ) {
+		//test current color
+		if (colorValue.contains(descriptionCategory[descriptionKeys[i]])) {
+			return descriptionKeys[i];
 		}
 	}
 }

@@ -1,6 +1,7 @@
 import * as dbHandler from '../../tools/database/dbHandler.mjs';
 import * as dbParser from '../../tools/database/parseDB.js';
 import * as SteamContainer from './SteamContainer.js';
+import dbSyntaxes from '../../tools/database/dbSyntaxes.js';
 /**
  * Calculates all statistics from the historic data.
  * Therefore it loads the historic data from the db and slices them into separated arrays.
@@ -27,7 +28,7 @@ export async function getAllStatistics() {
 
 	//getting the itemNames
 	try {
-		itemNames = await dbHandler.sqlQuery(sqlQueries.loadItemNames).then((res) => res.rows);
+		itemNames = await dbHandler.sqlQuery(dbSyntaxes.table_extractContainer.loadNames).then((res) => res.rows);
 		itemNames = itemNames.map((entry) => entry.itemname);
 	} catch (error) {
 		console.log('cant load itemnames for statistical calc loop');
@@ -37,7 +38,7 @@ export async function getAllStatistics() {
 
 	//create the statistics table
 	try {
-		let res = await dbHandler.sqlQuery(sqlQueries.createTable);
+		let res = await dbHandler.sqlQuery(dbSyntaxes.table_containerStatistics.createTable);
 		console.log(res);
 	} catch (error) {
 		console.log(error);
@@ -52,7 +53,7 @@ export async function getAllStatistics() {
 }
 
 async function saveDBData() {
-	await dbHandler.sqlQuery(this.sqlQueries.saveItemData.syntax, this.sqlQueries.saveItemData.variables);
+	await dbHandler.sqlQuery(dbSyntaxes.table_containerStatistics.saveAll, this.sqlQueries.saveItemData.variables);
 	return;
 }
 

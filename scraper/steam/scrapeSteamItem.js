@@ -149,12 +149,14 @@ async function getOrderData(scrapingPage, orderURL) {
 
 function waitForOrderUrl(variable) {
 	return new Promise((resolve) => {
-		const emergencyTimeout = setInterval(() => {
-			clearInterval(emergencyTimeout);
+		const emergencyTimeout = setTimeout(() => {
+			clearTimeout(emergencyTimeout);
+			clearInterval(interval);
 			resolve();
 		}, 10000);
 		const interval = setInterval(() => {
 			if (variable === true) {
+				clearTimeout(emergencyTimeout);
 				clearInterval(interval);
 				resolve();
 			}

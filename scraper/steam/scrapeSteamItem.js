@@ -5,7 +5,7 @@ import * as scBrowser from '../tools/scrapingBrowser.js';
  * @returns {object}	itemData	contains {itemName, itemID, itemDescription, rawData, orderData, currentBuy, currenSale}
  */
 
-export async function scrapeSteamItem(itemUrl) {
+export default async function scrapeSteamItem(itemUrl) {
 	try {
 		let scrapeBrowser = await scBrowser.start();
 		let scrapingPage = await scrapeBrowser.newPage();
@@ -41,23 +41,21 @@ export async function scrapeSteamItem(itemUrl) {
 		//now change the url to orderUrl and get the orderData
 		orderData = await getOrderData(scrapingPage, orderUrl);
 
-		await scrapingPage.close();
 		await scrapeBrowser.close();
-		/*	await dbHandler.sqlQuery(sqlSyntax_saveContainer, [
-			itemName,
-			itemID,
-			containerDescription,
-			rawData,
-			orderData,
-			currentBuy,
-			currentSale,
-		]);*/
+
+		return {
+			itemName: itemName,
+			itemID: itemID,
+			containerDescription: containerDescription,
+			rawData: rawData,
+			orderData: orderData,
+			currentBuy: currentBuy,
+			currentSale: currentSale,
+		};
 	} catch (error) {
 		console.error('cant get item data');
 		console.error(error);
 	}
-
-	return;
 }
 
 /**gets the itemName from the side */
@@ -105,7 +103,7 @@ async function scrapePrices(scrapingPage) {
 	return [currentBuy, currentSale];
 }
 
-/** catches the orderUrl from the api */
+/** goes to the required page and catches the orderUrl from the api */
 async function getOrderUrl(scrapingPage, itemUrl) {
 	let requestUrlRegEx = /(steamcommunity\.com\/market\/itemordershistogram\?)/gim;
 	let orderURL;
@@ -129,8 +127,10 @@ async function getOrderUrl(scrapingPage, itemUrl) {
 		}
 		request.continue();
 	});
-	await scrapingPage.goto(itemUrl, { timeout: 0 });
+	await scrapingPage.goto(itemUrl, { timeout: 30000 });
 
+	// set a emergency timeout if side doesn't work, scraping the page will fail but then it goes on with the next one instead of waiting for ever
+	setTimeout((foundOrderUrl = true), 30000);
 	await waitForOrderUrl(foundOrderUrl);
 
 	return orderURL;

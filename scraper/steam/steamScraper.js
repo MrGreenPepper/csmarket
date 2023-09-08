@@ -2,21 +2,11 @@ import * as scBrowser from '../tools/scrapingBrowser.js';
 import * as dbHandler from '../../tools/database/dbHandler.mjs';
 import * as extractor_container from './extractContainer.js';
 import * as statistcs from './getStatistics.js';
+import steamScraper from './scrapeSteamItem.js';
 import ini from 'ini';
 import fs from 'fs';
 
 let dbAccess = ini.parse(fs.readFileSync('./tools/database/db.ini', 'utf-8'));
-
-export async function container() {
-	//scraping basic item data from steam
-	await scrapingProtocol({
-		renewData: false,
-		scrapeUrls: false,
-		scrapeContainer: false,
-		extractContainerContent: true,
-		calculateStatistics: true,
-	});
-}
 
 /**
  *
@@ -26,32 +16,33 @@ export async function container() {
  * @param {options} convertContent
  * @param {options} scrapeWeapons
  */
-export async function scrapingProtocol({
-	renewData = false,
-	scrapeUrls = true,
-	scrapeContainer = true,
-	convertContent = true,
-	scrapeWeapons = false,
-	generateStatistics = true,
-	extractContainerContent = true,
-	calculateStatistics = true,
-}) {
-	if (renewData) {
+export async function scrapingProtocol() {
+	let protocol = {
+		renewData: false,
+		scrapeUrls: false,
+		scrapeContainer: true,
+		convertContent: true,
+		scrapeWeapons: false,
+		generateStatistics: true,
+		extractContainerContent: true,
+		calculateStatistics: true,
+	};
+	if (protocol.renewData) {
 		await dbHandler.dropAllTables();
 	}
-	if (scrapeUrls) {
+	if (protocol.scrapeUrls) {
 		await _getContainerUrls();
 	}
-	if (scrapeContainer) {
+	if (protocol.scrapeContainer) {
 		await _scrapeContainers();
 	}
-	if (scrapeWeapons) {
+	if (protocol.scrapeWeapons) {
 		_scrapeWeapons();
 	}
-	if (extractContainerContent) {
+	if (protocol.extractContainerContent) {
 		await extractor_container.extractContainerContent();
 	}
-	if (calculateStatistics) {
+	if (protocol.calculateStatistics) {
 		await statistcs.getAllStatistics();
 	}
 }
@@ -107,22 +98,11 @@ export async function _getContainerUrls() {
 	await createLinkTable(itemUrls);
 }
 
-function waitForOrderUrl(variable) {
-	return new Promise((resolve) => {
-		const interval = setInterval(() => {
-			if (variable === true) {
-				clearInterval(interval);
-				resolve();
-			}
-		}, 100);
-	});
-}
-
 /**loads the containerUrls from the DB, scrapes the pageContent and filters requests for order data& saves it  */
 async function _scrapeContainers() {
 	let sqlSyntax_loadUrls = dbAccess['table_containerUrls'].loadAll;
 	let sqlSyntax_createTable = dbAccess['table_scrapeContainer'].createTable;
-	let sqlSyntax_saveContainer = dbAccess['table_scrapeContainer'].saveAll;
+	let sqlSyntax_saveRawContainer = dbAccess['table_scrapeContainer'].saveAll;
 	let scrapeBrowser = await scBrowser.start();
 	let scrapingPage = await scrapeBrowser.newPage();
 	//get container URLS
@@ -139,70 +119,22 @@ async function _scrapeContainers() {
 	//loop, scrape and save urls rawContent
 
 	for (let containerMeta of containerUrls) {
+		let containerUrl = containerMeta.itemurl;
 		try {
-			let scrapingPage = await scrapeBrowser.newPage();
+			let containerData = await steamScraper(containerUrl);
 
-			let requestUrlRegEx = /(steamcommunity\.com\/market\/itemordershistogram\?)/gim;
-			let itemIDregEx = /(?<=item_nameid=).*(?=&)/gim;
-			let itemID = '';
-			let foundOrderUrl = false;
-			let orderURL;
-
-			let orderData;
-			let rawData;
-			let currentSale = 'no orders';
-			let currentBuy = 'no orders';
-			let containerDescription = [];
-
-			//get the orderData api url
-			await scrapingPage.setRequestInterception(true);
-
-			scrapingPage.on('request', (request) => {
-				let currentURL = request.url();
-				console.log(currentURL);
-				if (!foundOrderUrl) {
-					if (currentURL.match(requestUrlRegEx)) {
-						foundOrderUrl = true;
-						orderURL = currentURL;
-					}
-				}
-				if (['image', 'media', 'font'].indexOf(request.resourceType()) !== -1) {
-					return request.abort();
-				}
-				request.continue();
-			});
-
-			await scrapingPage.goto(containerMeta.itemurl, { timeout: 0 });
-			await waitForOrderUrl(foundOrderUrl);
-			/*try {
-				await scrapingPage.waitForSelector(
-					'div#orders_histogram.jqplot-target div.jqplot-highlighter-tooltip'
-				);
-			} catch {}*/
-
-			//try getting currentPrices ... need to wait until page loaded dynamic contents too
-			await scrapingPage.waitForSelector('span.market_commodity_orders_header_promote');
-			rawData = await scrapingPage.content();
-			[currentBuy, currentSale] = await scrapePrices(scrapingPage);
-
-			//get the containerItems
-			containerDescription = await getDescription(scrapingPage);
-
-			//go to the scraped order url
-			await scrapingPage.goto(orderURL);
-			await scrapingPage.waitForNetworkIdle();
-			itemID = parseInt(orderURL.match(itemIDregEx));
-			orderData = await scrapingPage.content();
-			await scrapingPage.close();
-			await dbHandler.sqlQuery(sqlSyntax_saveContainer, [
-				containerMeta.itemname,
-				itemID,
-				containerDescription,
-				rawData,
-				orderData,
-				currentBuy,
-				currentSale,
+			await dbHandler.sqlQuery(sqlSyntax_saveRawContainer, [
+				containerMeta.itemName,
+				containerData.itemID,
+				containerData.containerDescription,
+				containerData.rawData,
+				containerData.orderData,
+				containerData.currentBuy,
+				containerData.currentSale,
 			]);
+
+			//make a scraping break
+			await new Promise((resolve) => setTimeout(resolve, 3000));
 		} catch (error) {
 			console.error('cant get container data');
 			console.error(error);
@@ -212,43 +144,4 @@ async function _scrapeContainers() {
 	return;
 }
 
-/**
- * Scraps the item description. The desciption contains some release data and the contained items
- *
- * @param {*} scrapingPage
- * @returns
- */
-async function getDescription(scrapingPage) {
-	let containedItems;
-
-	containedItems = await scrapingPage.$$eval('div.item_desc_descriptors div.descriptor[style]', (res) => {
-		console.log(res);
-		console.log(res[0].attributes);
-		let descriptorList = [...res];
-		descriptorList = descriptorList.map((entry) => {
-			let outerHTML = entry.outerHTML;
-			let innerText = entry.innerText;
-			let style = entry.attributes.style.value;
-			return { outerHTML: outerHTML, innerText: innerText, style: style };
-		});
-
-		return descriptorList;
-	});
-
-	return containedItems;
-}
-async function scrapePrices(scrapingPage) {
-	let currentSale = 'no orders';
-	let currentBuy = 'no orders';
-	await scrapingPage;
-	try {
-		currentSale = await scrapingPage.$eval('#market_commodity_forsale', (res) => res.innerText);
-	} catch {}
-	try {
-		currentBuy = await scrapingPage.$eval('#market_commodity_buyrequests', (res) => res.innerText);
-	} catch {}
-
-	return [currentBuy, currentSale];
-}
-
-async function scrapeWeapons() {}
+async function scrapingDelay() {}

@@ -1,16 +1,16 @@
 import * as dbHandler from '../tools/database/dbHandler.mjs';
-import * as steamScraper from './steam/scrapeSteamItem.js';
+import * as steamScraper from './steam/steamScraper.js';
 
 (async function start() {
 	//scraping basic item data from steam
-	//await steamScraper.container();
+	await steamScraper.scrapingProtocol();
 	//create itemList out of the containerContents
 	let itemList = await createItemListfromContainersContents();
 
 	for (let item of itemList) {
 		item =
 			'https://steamcommunity.com/market/listings/730/Dual%20Berettas%20%7C%20Anodized%20Navy%20(Minimal%20Wear)';
-		let itemData = await steamScraper.scrapeSteamItem(item);
+		let itemData = await steamScraper(item);
 	}
 })();
 

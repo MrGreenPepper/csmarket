@@ -7,6 +7,17 @@ import fs from 'fs';
 
 let dbAccess = ini.parse(fs.readFileSync('./tools/database/db.ini', 'utf-8'));
 
+export async function container() {
+	//scraping basic item data from steam
+	await scrapingProtocol({
+		renewData: false,
+		scrapeUrls: false,
+		scrapeContainer: false,
+		extractContainerContent: true,
+		calculateStatistics: true,
+	});
+}
+
 /**
  *
  * @param {options} renewData

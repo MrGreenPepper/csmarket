@@ -104,13 +104,13 @@ function getDescriptionData(descriptionDataRaw) {
 		itemInfo: '255, 215, 0',
 	};
 	let rarityColors = {
-		consumerGrade: '210, 210, 210',
-		industrialGrade: '176, 195, 217',
-		milSpec: '75, 105, 255',
-		restricted: '136, 71, 255',
-		classified: '211, 44, 230',
-		covert: '235, 75, 75',
-		extraordinary: '255, 215, 0',
+		common: '210, 210, 210',
+		uncommon: '176, 195, 217',
+		rare: '75, 105, 255',
+		mythical: '136, 71, 255',
+		legendary: '211, 44, 230',
+		ancient: '235, 75, 75',
+		immortal: '255, 215, 0',
 	};
 	let rarities = Object.keys(rarityColors);
 
@@ -139,10 +139,10 @@ function getDescriptionData(descriptionDataRaw) {
 				if (styleData.includes(rarityColors[rarities[i]])) {
 					//test for weapon
 					if (innerText.includes('|')) {
-						let [weaponName, skinName] = innerText.split('|').map((entry) => entry.trim());
+						let [itemName, skinName] = innerText.split('|').map((entry) => entry.trim());
 						descriptionData.items.push({
 							itemRarity: rarities[i],
-							weaponName: weaponName,
+							itemName: itemName,
 							skinName: skinName,
 						});
 					} else {

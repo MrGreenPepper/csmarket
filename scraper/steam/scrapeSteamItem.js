@@ -7,6 +7,7 @@ import * as scBrowser from '../tools/scrapingBrowser.js';
 
 export default async function scrapeSteamItem(itemUrl) {
 	try {
+		itemUrl = 'https://steamcommunity.com/market/listings/730/Dreams%20%26%20Nightmares%20Caseasdf';
 		let scrapeBrowser = await scBrowser.start();
 		let scrapingPage = await scrapeBrowser.newPage();
 
@@ -130,9 +131,8 @@ async function getOrderUrl(scrapingPage, itemUrl) {
 	await scrapingPage.goto(itemUrl, { timeout: 30000 });
 
 	// set a emergency timeout if side doesn't work, scraping the page will fail but then it goes on with the next one instead of waiting for ever
-	setTimeout((foundOrderUrl = true), 30000);
-	await waitForOrderUrl(foundOrderUrl);
 
+	await waitForOrderUrl(foundOrderUrl);
 	return orderURL;
 }
 
@@ -149,6 +149,10 @@ async function getOrderData(scrapingPage, orderURL) {
 
 function waitForOrderUrl(variable) {
 	return new Promise((resolve) => {
+		const emergencyTimeout = setInterval(() => {
+			clearInterval(emergencyTimeout);
+			resolve();
+		}, 10000);
 		const interval = setInterval(() => {
 			if (variable === true) {
 				clearInterval(interval);

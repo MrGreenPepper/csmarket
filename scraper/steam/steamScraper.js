@@ -20,12 +20,12 @@ export async function scrapingProtocol() {
 	let protocol = {
 		renewData: false,
 		scrapeUrls: false,
-		scrapeContainer: true,
-		convertContent: true,
+		scrapeContainer: false,
+		convertContent: false,
 		scrapeWeapons: false,
-		generateStatistics: true,
-		extractContainerContent: true,
-		calculateStatistics: true,
+		generateStatistics: false,
+		extractContainerContent: false,
+		calculateStatistics: false,
 	};
 	if (protocol.renewData) {
 		await dbHandler.dropAllTables();
@@ -66,8 +66,8 @@ export async function _getContainerUrls() {
 
 	//loop threw the pages and get the itemlinks
 	let itemUrls = [];
-	for (let i = 1; i <= 2; i++) {
-		//for (let i = 1; i <= pageCount; i++) {
+	//for (let i = 1; i <= 2; i++) {
+	for (let i = 1; i <= pageCount; i++) {
 		/*
 		let currentURL = steamUrl_csgo;
 		if (i != 0) currentURL += `#p${i}_default_desc#p8`;

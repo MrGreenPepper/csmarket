@@ -4,6 +4,7 @@ body {
 		'Droid Sans', 'Helvetica Neue', sans-serif;
 	-webkit-font-smoothing: antialiased;
 	-moz-osx-font-smoothing: grayscale;
+	background-color: darkgrey;
 }
 
 code {
@@ -26,6 +27,48 @@ table {
 }
 
 td {
+	min-width: 150px;
 	padding: 2px;
 	padding-right: 30px;
+}
+
+.mainFrame {
+	max-width: 1400px;
+	align-self: center;
+	margin: auto;
+}
+
+.containerContents {
+	font-weight: bold;
+}
+
+.react-select-container {
+	background-color: darkgrey;
+}
+.containerContents[rarity='common'] {
+	color: rgb(176, 195, 217);
+}
+
+.containerContents[rarity='uncommon'] {
+	color: rgb(94, 152, 217);
+}
+
+.containerContents[rarity='rare'] {
+	color: rgb(75, 105, 255);
+}
+
+.containerContents[rarity='mythical'] {
+	color: rgb(136, 71, 255);
+}
+
+.containerContents[rarity='legendary'] {
+	color: rgb(211, 44, 230);
+}
+
+.containerContents[rarity='ancient'] {
+	color: rgb(235, 75, 75);
+}
+
+.containerContents[rarity='immortal'] {
+	color: rgb(255, 215, 0);
 }

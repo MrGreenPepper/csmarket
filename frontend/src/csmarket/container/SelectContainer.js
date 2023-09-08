@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import Select from 'react-select';
 import axios from 'axios';
 import ContainerStatistics from './ContainerStatistics.js';
+import { color } from 'd3';
 
 const listUrl = '/api/csmarket/container/list';
 
@@ -31,7 +32,17 @@ export default function SelectContainer() {
 	return (
 		<div>
 			<h6>SelectContainer</h6>
-			<Select options={selectOptions} onChange={(value) => loadContainerData(value)}></Select>
+			<Select
+				styles={{
+					control: (baseStyles, state) => ({
+						...baseStyles,
+						backgroundColor: 'darkgray',
+						borderColor: 'black',
+					}),
+				}}
+				options={selectOptions}
+				onChange={(value) => loadContainerData(value)}
+			></Select>
 			{containerData ? <ContainerStatistics data={containerData} /> : 'select one'}
 		</div>
 	);

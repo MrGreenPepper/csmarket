@@ -1,3 +1,5 @@
+import * as numberTools from '../../../../tools/numbers.js';
+
 export default function HistoricTable({ historicData }) {
 	return (
 		<div id="historicTable">
@@ -9,7 +11,7 @@ export default function HistoricTable({ historicData }) {
 					</tr>
 					<tr>
 						<td>traded volume sum</td>
-						<td>{historicData.tradeVolumes.tradeVolumeSum.toFixed(2)}</td>
+						<td>{numberTools.numberToCurrency(historicData.tradeVolumes.tradeVolumeSum)} €</td>
 					</tr>
 				</tbody>
 			</table>
